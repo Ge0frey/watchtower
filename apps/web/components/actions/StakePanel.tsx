@@ -6,6 +6,7 @@ import { useAccount, useReadContract } from 'wagmi';
 import { formatCtc, underwritingVaultAbi } from '@watchtower/shared';
 import { VAULT, type ChainSubject } from '@/hooks/useChainState';
 import { useWatchtowerWrite } from '@/hooks/useWatchtowerWrite';
+import { Button, Field, Input, Notice, Row } from '@/components/ui';
 import { ActionShell, ConnectGate, TxState } from './TxButton';
 
 /**
@@ -47,30 +48,26 @@ export function StakePanel({ subject }: { subject: ChainSubject }) {
 
   return (
     <ActionShell title="Underwrite" hint="earn premiums, bear payout risk">
-      <dl className="quote">
-        <div><dt>tranche</dt><dd>{formatCtc(subject.staked, 2)}</dd></div>
-        <div><dt>premiums</dt><dd>{formatCtc(subject.premiums, 4)}</dd></div>
-        <div><dt>paid out</dt><dd>{formatCtc(subject.paidOut, 2)}</dd></div>
-        <div><dt>your stake</dt><dd>{formatCtc(staked, 4)}</dd></div>
-        <div><dt>your premiums</dt><dd>{formatCtc(claimable, 4)}</dd></div>
-      </dl>
+      <div>
+        <Row label="tranche" value={formatCtc(subject.staked, 2)} />
+        <Row label="premiums earned" value={formatCtc(subject.premiums, 4)} />
+        <Row label="paid out" value={formatCtc(subject.paidOut, 2)} />
+        <Row label="your stake" value={formatCtc(staked, 4)} />
+        <Row label="your premiums" value={formatCtc(claimable, 4)} tone={claimable > 0n ? 'settled' : 'neutral'} />
+      </div>
 
-      <div className="field-row">
-        <label className="field-label" htmlFor={`stake-${subject.id}`}>amount (CTC)</label>
-        <input
-          id={`stake-${subject.id}`}
-          className="input mono"
+      <Field label="amount (CTC)">
+        <Input
           value={amount}
           onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
           inputMode="decimal"
         />
-      </div>
+      </Field>
 
       <ConnectGate {...write} />
 
-      <div className="btn-row">
-        <button
-          className="btn"
+      <div className="flex flex-wrap gap-2">
+        <Button
           disabled={!write.canWrite || write.busy || wei === 0n}
           onClick={() =>
             write.send({
@@ -83,10 +80,10 @@ export function StakePanel({ subject }: { subject: ChainSubject }) {
           }
         >
           Stake
-        </button>
+        </Button>
 
-        <button
-          className="btn btn-ghost"
+        <Button
+          variant="ghost"
           disabled={!write.canWrite || write.busy || wei === 0n || subject.frozen || staked < wei}
           title={subject.frozen ? 'frozen: this subject has an unresolved breach' : undefined}
           onClick={() =>
@@ -99,10 +96,10 @@ export function StakePanel({ subject }: { subject: ChainSubject }) {
           }
         >
           Unstake
-        </button>
+        </Button>
 
-        <button
-          className="btn btn-ghost"
+        <Button
+          variant="ghost"
           disabled={!write.canWrite || write.busy || claimable === 0n}
           title="premiums earned by your stake, without withdrawing the stake"
           onClick={() =>
@@ -115,19 +112,19 @@ export function StakePanel({ subject }: { subject: ChainSubject }) {
           }
         >
           Claim premiums
-        </button>
+        </Button>
       </div>
 
-      <p className="dim small">
+      <p className="text-[13px] leading-relaxed text-ink/50">
         Unstaking pays out any premiums owed in the same transaction &mdash; claiming separately is
         only for taking the income while leaving the capital at work.
       </p>
 
       {subject.frozen && (
-        <p className="notice small">
+        <Notice>
           Withdrawals are frozen: a breach has been proven against this subject and is awaiting
           settlement. Underwriters cannot exit between a proven violation and its payout.
-        </p>
+        </Notice>
       )}
 
       <TxState status={write.status} hash={write.hash} error={write.error} confirmedLabel="position updated" />
