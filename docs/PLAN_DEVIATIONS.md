@@ -1,6 +1,6 @@
 # Deviations from the execution plan
 
-Six things differ from `watchtowerplan.md`. Each was a decision made while building, with the
+Eight things differ from `watchtowerplan.md`. Each was a decision made while building, with the
 reason recorded here rather than left to be discovered.
 
 ## 1. Worker persistence is a JSON file, not Postgres + Drizzle
@@ -78,6 +78,34 @@ the decoder does not expose; guessing at it would reimburse from the wrong field
 by name instead. Stated in the README's limitations rather than left to be discovered by a judge
 pasting a blob transaction.
 
+## 7. The frontend is Tailwind v4, not hand-written CSS
+
+**Plan:** Tailwind + shadcn/ui, `framer-motion` for the block strip.
+**Built:** Tailwind v4 with a semantic `@theme` token block and a small local primitive set. No
+shadcn, no framer-motion.
+
+**Why:** shadcn's defaults — rounded corners, soft shadows, muted greys — are the opposite of the
+look this product needs, so every component would have been fought rather than used. The primitives
+Watchtower actually repeats are few enough to own outright (`Panel`, `Section`, `Stat`, `Badge`,
+`Row`, `Button`, `Field`, `Notice`, `Empty`), and owning them is what keeps colour semantic: `proven`
+is sage everywhere because one file says so. The motion that matters is the block strip's staggered
+reveal, which is a CSS keyframe and an interval — a 40 kB animation library for that would be a poor
+trade in a bundle already carrying viem and wagmi.
+
+Tailwind v4 needs no `tailwind.config.js`: tokens live in `@theme` inside `globals.css`, which is
+also the only place the design system exists.
+
+## 8. `/` is a landing page; the application starts at `/dashboard`
+
+**Plan:** one route, the dashboard.
+**Built:** two route groups — `app/(marketing)` and `app/(app)`.
+
+**Why:** Watchtower is not a familiar product category. Dropping a first-time reader straight into a
+tool with five tabs assumes an understanding of the thesis they have no way to have yet, and the
+thesis is the interesting part. The landing page makes the argument in five moves and hands over one
+door. It also carries two numbers read live off Creditcoin, so the argument is checkable before a
+single feature is described — which is a better opening than any screenshot.
+
 ---
 
 ## Additions the plan did not specify
@@ -95,6 +123,11 @@ pasting a blob transaction.
   works forward from it, so progress is only ever recorded by a confirmed receipt. The plan's
   "commit the cursor only after an on-chain receipt" is stronger stated this way: there is no local
   cursor left to get ahead of the chain. `lastScanned` survives only as a *nothing-here* watermark.
+- **The web app reads the repo-root `.env`.** Next only loads `.env` from the app directory, so the
+  browser bundle shipped with no contract addresses and the dashboard rendered "no deployment
+  configured" against a chain that was plainly live. `next.config.mjs` now forwards the root file's
+  `NEXT_PUBLIC_*` keys through Next's `env` option — an allowlist by prefix, because the same file
+  holds three private keys.
 - **`fixtures/` is replayed by the test suite.** `FixtureReplay.t.sol` asserts that the index derived
   from a real Merkle sibling path equals the one the Proof Builder reported, and that the real receipt
   bytes decode — the Day-1 thesis, committed as a test rather than left in a script's output.

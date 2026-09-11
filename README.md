@@ -43,7 +43,7 @@ contracts/          Foundry. The ASC, the rule library, the vault. 79 tests, fuz
 packages/shared/    Chain config, rule ids, types, generated ABIs.
 packages/attestcoin/ Every conversation with the protocol: SDK client, proofs, pre-flight, gas.
 apps/prosecutor/    The worker: three scanners, one submission path, indexer, REST + SSE.
-apps/web/           The dashboard. One screen.
+apps/web/           Next.js. A landing page that makes the argument, then the application.
 fixtures/           Proof bundles captured from the live testnet, replayed by the test suite.
 docs/               Integration doc, architecture, demo runbook.
 ```
@@ -79,8 +79,11 @@ pnpm demo:skip-gap                                # stage a stream step with a h
 pnpm balances                                     # every key, on the chain it spends on
 ```
 
-The dashboard renders fully with **no wallet connected**. Only buying cover, staking and funding a
-watch need one.
+`/` is the landing page — the argument, with two live numbers read off Creditcoin by the browser so
+the claim is checkable before anything is explained. `/dashboard` is where the application starts.
+
+Everything renders fully with **no wallet connected**. Only buying cover, staking, claiming premiums
+and funding a watch need one.
 
 ## It is live
 

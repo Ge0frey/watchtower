@@ -1,284 +1,279 @@
-:root {
-  --bg: #0b0e13;
-  --panel: #12161f;
-  --panel-2: #171c27;
-  --line: #222a38;
-  --text: #e6ebf2;
-  --dim: #8592a6;
-  --slate: #222a38;
-  --blue: #4c8dff;
-  --green: #35c98a;
-  --amber: #f0a93b;
-  --red: #ef5a5a;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+/* ==========================================================================
+   Watchtower — the design system
+   --------------------------------------------------------------------------
+   A forensic print dossier, not a crypto dashboard.
+
+   GROUND      warm paper. The application is a document, and documents are read
+               on paper. It is also the fastest way to not look like every other
+               dark-mode chain explorer.
+   INK         near-black. One grotesque at every size, separated by weight and
+               scale rather than by family — the Swiss move, and the reason the
+               pages can breathe without going soft.
+   MONO        anything the chain produced. Every coordinate, hash, amount and
+               label that came off a block is set in mono. That is the whole
+               typographic rule, and it is what makes proven data look different
+               from copy written by us.
+
+   SAGE means PROVEN. It works as a fill with ink on top, as a rule, and — in its
+   deeper cut — as type, so a proven value can simply be sage rather than needing a
+   marker. Nothing speculative is ever sage, and it is spent rarely: the accent and
+   the primary action, nothing else.
+
+   Soft corners, hairline rules, no shadows and no gradients on surfaces. Depth is
+   a 1px rule and a three-step paper scale — recessed, page, raised.
+
+   Nothing on any screen blinks, pulses or breathes. The only motion left is
+   evidence arriving, once.
+   ========================================================================== */
+
+@import 'tailwindcss';
+
+@theme {
+  /* ---------------------------------------------------------------- ground */
+  --color-paper: #f2f1ec; /* the page */
+  --color-card: #fbfaf6; /* a surface raised off the page */
+  --color-paper-dim: #e6e4dc; /* a recessed band */
+
+  --color-ink: #101010; /* type, rules, and inverted grounds */
+  --color-ink-soft: #1c1c1a; /* a surface raised off an ink ground */
+
+  /* ----------------------------------------------------------- semantics
+     Five meanings, no decoration. If a colour appears, it is asserting
+     something about the state of a claim. */
+  --color-accent: #7d8f6a; /* PROVEN — verified by the precompile */
+  --color-accent-deep: #556047; /* the same meaning, dark enough to be body type */
+  --color-breach: #c62c17; /* a violation, a victim, a shortfall */
+  --color-open: #9a6205; /* bonded, challengeable, awaiting a window */
+  --color-settled: #0f7346; /* paid, solvent, resolved */
+
+  /* Toned surfaces are precomputed OPAQUE tints rather than an alpha over paper.
+     A translucent tint sitting on a hairline grid composites against the rule
+     colour and goes muddy — these are the same values, already mixed. */
+  --color-wash-proven: #eceee3;
+  --color-wash-breach: #f7ece6;
+  --color-wash-pending: #f4efe5;
+  --color-wash-settled: #ebf1ea;
+
+  /* Vermilion is too dark to read on an ink ground; this is the same meaning,
+     lit for the two bands and the rail that are set on black. */
+  --color-breach-lit: #ff6a4d;
+
+  /* ------------------------------------------------------------------ type */
+  --font-sans: var(--font-archivo), 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* --------------------------------------------------------------- corners
+     Soft, not round. Enough to take the hard edge off a control without the
+     interface drifting into the pill-and-shadow look the rest of this system is
+     deliberately avoiding. Evidence cells stay nearly square — they are slots in
+     a block, and a slot that looks like a button reads as one. */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
 }
 
-* { box-sizing: border-box; }
+/* ------------------------------------------------------------------- base */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--color-paper);
+  scroll-behavior: smooth;
+  /* Every anchor on the landing page clears the fixed header. */
+  scroll-padding-top: 6rem;
+}
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-.mono { font-family: var(--mono); font-size: 0.92em; }
-.dim { color: var(--dim); }
-.small { font-size: 12px; }
-.strong { font-weight: 650; }
-code { font-family: var(--mono); background: var(--panel-2); padding: 1px 4px; border-radius: 3px; }
-
-.shell { max-width: 1280px; margin: 0 auto; padding: 22px 24px 64px; }
-
-/* ---------------------------------------------------------------- top bar */
-.topbar {
-  display: flex; align-items: center; justify-content: space-between; gap: 24px;
-  padding: 14px 18px; margin-bottom: 18px;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-}
-.brand-mark { font-weight: 700; letter-spacing: 0.14em; font-size: 15px; }
-.brand-sub { display: block; color: var(--dim); font-size: 12px; margin-top: 2px; }
-.topbar-stats { display: flex; gap: 10px; flex-wrap: wrap; }
-.badge-stat {
-  display: flex; flex-direction: column; gap: 2px;
-  padding: 6px 12px; border-radius: 8px;
-  background: var(--panel-2); border: 1px solid var(--line); min-width: 110px;
-}
-.badge-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--dim); }
-.badge-value { font-size: 13px; }
-.badge-stat.tone-ok { border-color: rgba(53, 201, 138, 0.4); }
-.badge-stat.tone-warn { border-color: rgba(240, 169, 59, 0.4); }
-.badge-stat.tone-bad { border-color: rgba(239, 90, 90, 0.45); }
-
-/* ---------------------------------------------------------------- layout */
-.columns { display: grid; grid-template-columns: 330px 1fr; gap: 18px; align-items: start; }
-@media (max-width: 980px) { .columns { grid-template-columns: 1fr; } }
-
-.section-label {
-  display: block; font-size: 10px; text-transform: uppercase;
-  letter-spacing: 0.12em; color: var(--dim); margin-bottom: 10px;
+::selection {
+  background: var(--color-accent);
+  color: var(--color-ink);
 }
 
-/* --------------------------------------------------------------- subjects */
-.col-subjects { display: flex; flex-direction: column; gap: 10px; }
-.tile {
-  display: block; width: 100%; text-align: left; cursor: pointer;
-  padding: 12px 14px; border-radius: 10px;
-  background: var(--panel); border: 1px solid var(--line); color: inherit;
-  transition: border-color 0.15s, transform 0.15s;
+/* A 7px rail in ink, so scrolling reads as part of the document. */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
 }
-.tile:hover { transform: translateY(-1px); }
-.tile.selected { border-color: var(--blue); }
-.tile-head { display: flex; justify-content: space-between; align-items: baseline; }
-.tile-label { font-weight: 600; }
-.tile-kind { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--dim); }
-.tile-health { font-size: 18px; font-weight: 650; margin: 6px 0 8px; }
-.tile.tone-ok .tile-health { color: var(--green); }
-.tile.tone-warn .tile-health { color: var(--amber); }
-.tile.tone-bad .tile-health { color: var(--red); }
-.tile.tone-idle .tile-health { color: var(--dim); font-size: 14px; font-weight: 500; }
-.tile-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); }
-.tile-meta.dim { margin-top: 3px; opacity: 0.75; }
-
-/* ------------------------------------------------------------------ vault */
-.vault { margin-top: 8px; padding: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
-.vault-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-.stat { display: flex; flex-direction: column; }
-.stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--dim); }
-.stat-value { font-size: 14px; font-weight: 600; }
-.leader-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 3px 0; }
-
-/* ------------------------------------------------------------------- feed */
-.col-feed { display: flex; flex-direction: column; gap: 12px; }
-.feed-head { display: flex; justify-content: space-between; align-items: baseline; }
-
-.pipeline-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 12px; border-radius: 8px;
-  background: var(--panel); border: 1px dashed var(--line);
+::-webkit-scrollbar-track {
+  background: var(--color-paper-dim);
 }
-.pulse {
-  width: 7px; height: 7px; border-radius: 50%; background: var(--blue);
-  animation: pulse 1.4s ease-in-out infinite;
+::-webkit-scrollbar-thumb {
+  background: rgba(16, 16, 16, 0.28);
 }
-@keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
-
-.card { padding: 14px 16px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); }
-.card.tone-ok { border-left: 3px solid var(--green); }
-.card.tone-warn { border-left: 3px solid var(--amber); }
-.card.tone-bad { border-left: 3px solid var(--red); }
-.card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.card-rule { font-weight: 650; margin-right: 10px; }
-.badge { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 7px; border-radius: 20px; border: 1px solid var(--line); color: var(--dim); }
-.badge-ok { color: var(--green); border-color: rgba(53, 201, 138, 0.45); }
-.badge-warn { color: var(--amber); border-color: rgba(240, 169, 59, 0.45); }
-.badge-bad { color: var(--red); border-color: rgba(239, 90, 90, 0.45); }
-
-.card-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
-@media (max-width: 720px) { .card-grid { grid-template-columns: repeat(2, 1fr); } }
-.field { display: flex; flex-direction: column; }
-.field-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--dim); }
-.field-value { font-size: 14px; }
-.field-value.strong { font-size: 16px; font-weight: 650; }
-
-.card-evidence { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-.chip {
-  font-family: var(--mono); font-size: 11px; padding: 3px 8px; border-radius: 5px;
-  background: var(--panel-2); border: 1px solid var(--line); color: var(--dim); text-decoration: none;
-}
-.chip.freshness-fresh { color: var(--green); border-color: rgba(53, 201, 138, 0.35); }
-.chip.freshness-aging { color: var(--amber); border-color: rgba(240, 169, 59, 0.35); }
-.chip.freshness-stale { color: var(--red); border-color: rgba(239, 90, 90, 0.35); }
-.card-link { display: inline-block; margin-top: 10px; font-size: 12px; color: var(--blue); text-decoration: none; }
-
-/* ------------------------------------------------------------ block strip */
-.strip { margin: 4px 0 10px; }
-.strip-row { display: flex; gap: 3px; flex-wrap: wrap; }
-.cell {
-  width: 30px; height: 30px; border-radius: 5px;
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--mono); font-size: 9px; color: rgba(11, 14, 19, 0.85);
-  transition: background 0.25s ease, transform 0.25s ease;
-}
-.cell.idle { color: var(--dim); }
-.cell.gap { border: 1px dashed var(--red); background: transparent !important; color: var(--red); }
-.cell.off { transform: scale(0.92); opacity: 0.55; }
-.cell.on { transform: scale(1); opacity: 1; }
-.cell-index { pointer-events: none; }
-.strip-caption { font-size: 11px; color: var(--dim); margin-top: 6px; }
-
-/* -------------------------------------------------------------- prosecute */
-.btn {
-  padding: 10px 20px; border-radius: 8px; border: 1px solid var(--blue);
-  background: var(--blue); color: #07101f; font-weight: 650; cursor: pointer;
-}
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.prosecute-status { color: var(--blue); }
-
-.empty { padding: 34px 20px; text-align: center; border: 1px dashed var(--line); border-radius: 10px; }
-.notice { padding: 12px; border: 1px solid var(--amber); border-radius: 8px; font-size: 12px; color: var(--amber); }
-
-/* ======================================================================
-   Routed application: navigation, pages, forms and write-action states.
-   ====================================================================== */
-
-.topbar-left { display: flex; align-items: center; gap: 22px; }
-.brand { text-decoration: none; color: inherit; }
-.nav { display: flex; gap: 4px; }
-.nav-link {
-  padding: 6px 11px; border-radius: 7px; font-size: 13px;
-  color: var(--dim); text-decoration: none; transition: color 0.15s, background 0.15s;
-}
-.nav-link:hover { color: var(--text); background: var(--panel-2); }
-.nav-link.active { color: var(--text); background: var(--panel-2); }
-
-/* ------------------------------------------------------------- pages */
-.page-head { margin-bottom: 20px; }
-.page-head h2 { margin: 6px 0 4px; font-size: 22px; }
-.page-head p { margin: 0; max-width: 70ch; }
-.section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
-
-.hero { padding: 28px 0 22px; border-bottom: 1px solid var(--line); margin-bottom: 22px; }
-.hero h1 { margin: 0 0 12px; font-size: 27px; line-height: 1.28; max-width: 24ch; }
-.hero-lede { margin: 0 0 18px; color: var(--dim); max-width: 68ch; }
-.hero-actions { display: flex; gap: 10px; }
-
-.stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 22px; }
-.stat-card { padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
-.stat-card .stat-label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--dim); }
-.stat-card .stat-value { font-size: 19px; font-weight: 650; }
-
-.how { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-bottom: 26px; }
-.step { display: flex; gap: 11px; }
-.step-n {
-  flex: none; width: 22px; height: 22px; border-radius: 50%;
-  background: var(--panel-2); border: 1px solid var(--line);
-  display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--dim);
-}
-.step-title { font-weight: 600; font-size: 13px; }
-.step p { margin: 3px 0 0; }
-
-.tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
-.tile-link { text-decoration: none; color: inherit; display: block; }
-.tile-link:hover .tile { border-color: var(--blue); transform: translateY(-1px); }
-.tile.frozen { border-color: rgba(240, 169, 59, 0.5); }
-.tile-flag { margin-top: 8px; font-size: 11px; color: var(--amber); }
-
-.detail-grid { display: grid; grid-template-columns: 1fr 380px; gap: 16px; align-items: start; margin-bottom: 22px; }
-@media (max-width: 980px) { .detail-grid { grid-template-columns: 1fr; } }
-.panel { padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
-.panel-stack { display: flex; flex-direction: column; gap: 12px; }
-.hero-strip { margin-bottom: 16px; }
-
-.reserve { margin-top: 14px; }
-.reserve-bar { height: 8px; border-radius: 4px; background: var(--slate); overflow: hidden; margin: 6px 0; }
-.reserve-fill { height: 100%; transition: width 0.4s ease; }
-.reserve-fill.ok { background: var(--green); }
-.reserve-fill.bad { background: var(--red); }
-
-.quote { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin: 12px 0; }
-.quote div { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
-.quote dt { color: var(--dim); }
-.quote dd { margin: 0; text-align: right; }
-.quote dd.strong { font-weight: 650; }
-
-.table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.table th {
-  text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em;
-  color: var(--dim); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--line);
-}
-.table td { padding: 8px; border-bottom: 1px solid var(--line); }
-.table tr:last-child td { border-bottom: none; }
-
-.filters { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
-.segmented { display: flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
-.seg {
-  padding: 5px 12px; border: none; background: transparent; color: var(--dim);
-  border-radius: 6px; font-size: 12px; cursor: pointer;
-}
-.seg.active { background: var(--panel); color: var(--text); }
-.select {
-  padding: 7px 10px; border-radius: 8px; font-size: 12px;
-  background: var(--panel); border: 1px solid var(--line); color: var(--text);
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 16, 16, 0.5);
 }
 
-.card-link-wrap { display: block; text-decoration: none; color: inherit; margin-bottom: 12px; }
-.card-link-wrap:hover .card { border-color: var(--blue); }
-.card-subject { font-size: 12px; margin-right: 10px; }
-.chip-link { color: var(--blue); border-color: rgba(76, 141, 255, 0.35); }
-.evidence-list { list-style: none; padding: 0; margin: 10px 0 0; }
-.evidence-list li { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; font-size: 12px; border-bottom: 1px solid var(--line); }
-.evidence-list a { color: var(--blue); text-decoration: none; }
-.inflight { margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px; }
-
-/* ---------------------------------------------------------- actions */
-.action { padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
-.action-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
-.action-title { font-weight: 650; font-size: 13px; }
-.action p { margin: 8px 0; }
-
-.field-row { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
-.input {
-  width: 100%; padding: 9px 11px; border-radius: 8px;
-  background: var(--panel-2); border: 1px solid var(--line); color: var(--text); font-size: 13px;
+/* Focus is a solid ink ring — visible on paper and on ink alike. */
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
 }
-.input:focus { outline: none; border-color: var(--blue); }
-.textarea { resize: vertical; min-height: 66px; margin: 10px 0; }
 
-.btn-row { display: flex; gap: 8px; }
-.btn-ghost { background: transparent; color: var(--text); border-color: var(--line); }
-.btn-ghost:hover:not(:disabled) { border-color: var(--blue); }
-.btn-warn { background: var(--amber); border-color: var(--amber); color: #1b1200; }
+/* ---------------------------------------------------------------- utilities
+   Deliberately few. Anything used once stays inline; only patterns that must
+   stay identical across many screens earn a name here. */
 
-.tx-state { margin-top: 10px; padding: 8px 10px; border-radius: 7px; font-size: 12px; background: var(--panel-2); border: 1px solid var(--line); }
-.tx-signing, .tx-pending { color: var(--amber); border-color: rgba(240, 169, 59, 0.35); }
-.tx-confirmed { color: var(--green); border-color: rgba(53, 201, 138, 0.35); }
-.tx-error { color: var(--red); border-color: rgba(239, 90, 90, 0.35); }
-.tx-link { margin-left: 8px; color: var(--blue); text-decoration: none; }
-
-.worker-banner {
-  padding: 10px 14px; margin-bottom: 18px; border-radius: 9px; font-size: 12px;
-  background: rgba(240, 169, 59, 0.08); border: 1px solid rgba(240, 169, 59, 0.4); color: var(--amber);
+/** The only micro-heading there is. Mono, uppercase, wide — print marginalia. */
+@utility label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  line-height: 1.4;
 }
-.worker-banner code { background: rgba(0, 0, 0, 0.25); color: inherit; }
+
+/**
+ * The display setting. One grotesque, pushed to a weight and a negative
+ * tracking that only work at size — which is the point: a headline here is
+ * unmistakably a headline, so the body copy never has to shout.
+ */
+@utility display {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.92;
+  text-wrap: balance;
+}
+
+/** The highlighter. Reserved for the one or two words a page is actually asserting. */
+@utility mark-proven {
+  background: var(--color-accent);
+  color: var(--color-ink);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding: 0.06em 0.24em;
+  margin: 0 -0.06em;
+  border-radius: 3px;
+}
+
+/**
+ * The vertical rules from a printer's registration sheet. Faint enough to read
+ * as texture and not as a grid, and only ever behind statement sections.
+ */
+@utility ruled {
+  background-image: repeating-linear-gradient(
+    to right,
+    rgba(16, 16, 16, 0.055) 0 1px,
+    transparent 1px 88px
+  );
+}
+
+@utility ruled-ink {
+  background-image: repeating-linear-gradient(
+    to right,
+    rgba(242, 241, 236, 0.08) 0 1px,
+    transparent 1px 88px
+  );
+}
+
+/** A dotted field, for the one section that needs to feel like a drawing. */
+@utility dot-field {
+  background-image: radial-gradient(rgba(16, 16, 16, 0.22) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+
+/**
+ * The page's horizontal measure. Every route uses this, so the left edge of a
+ * heading on the vault page and on the landing page are the same edge.
+ */
+@utility shell {
+  width: 100%;
+  margin-inline: auto;
+  max-width: 1280px;
+  padding-inline: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .shell {
+    padding-inline: 2.5rem;
+  }
+}
+
+/* ------------------------------------------------------------- animation
+   One thing moves: evidence arriving, once, when it first renders. There is no
+   pulse, no blink and no breathing dot anywhere in this system — a live system
+   proves it is live by changing its numbers, not by twitching at the reader. The
+   orbit rings are the single exception, and they turn slowly enough to read as
+   drawing rather than as motion. */
+
+@keyframes cell-in {
+  from {
+    opacity: 0.1;
+    transform: translateY(4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbit-reverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+.animate-cell-in {
+  animation: cell-in 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-rise {
+  animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-orbit {
+  animation: orbit 64s linear infinite;
+}
+.animate-orbit-reverse {
+  animation: orbit-reverse 96s linear infinite;
+}
+
+/* Someone who asked not to be moved gets no motion, including the evidence
+   animation — the coordinates still land, they just do not travel. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

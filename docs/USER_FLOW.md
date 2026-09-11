@@ -12,6 +12,9 @@ groups of people meet around them.
 | a prosecutor | bounties | prove incidents, relayed or self-signed |
 | a challenger | a bad claim overturned | prove a skipped transaction, take the bond |
 
+Start at `/` for what Watchtower is and why it can exist, then `/dashboard` for what it is currently
+doing. Everything below reads without a wallet; only spending needs one.
+
 ---
 
 ## Buying cover
