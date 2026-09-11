@@ -5,6 +5,7 @@ import { parseEther } from 'viem';
 import { formatCtc, underwritingVaultAbi } from '@watchtower/shared';
 import { VAULT, type ChainSubject } from '@/hooks/useChainState';
 import { useWatchtowerWrite } from '@/hooks/useWatchtowerWrite';
+import { Button, Field, Input } from '@/components/ui';
 import { ActionShell, ConnectGate, TxState } from './TxButton';
 
 /**
@@ -24,26 +25,23 @@ export function FundWatchPanel({ subject }: { subject: ChainSubject }) {
 
   return (
     <ActionShell title="Fund a watch" hint="pays whoever proves something here">
-      <p className="dim small">
-        Bounty pool: <strong>{formatCtc(subject.bountyPool, 3)}</strong>. A prosecutor delivering
-        fresh evidence takes the full bounty; evidence past the 24-hour checkpoint cliff earns 20% of
-        it, because its continuity proof costs roughly ten times the gas.
+      <p className="text-[13px] leading-relaxed text-ink/50">
+        Bounty pool: <span className="font-mono text-ink">{formatCtc(subject.bountyPool, 3)}</span>.
+        A prosecutor delivering fresh evidence takes the full bounty; evidence past the 24-hour
+        checkpoint cliff earns 20% of it, because its continuity proof costs roughly ten times the
+        gas.
       </p>
 
-      <div className="field-row">
-        <label className="field-label" htmlFor={`watch-${subject.id}`}>amount (CTC)</label>
-        <input
-          id={`watch-${subject.id}`}
-          className="input mono"
+      <Field label="amount (CTC)">
+        <Input
           value={amount}
           onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
           inputMode="decimal"
         />
-      </div>
+      </Field>
 
       <ConnectGate {...write} />
-      <button
-        className="btn"
+      <Button
         disabled={!write.canWrite || write.busy || wei === 0n}
         onClick={() =>
           write.send({
@@ -56,7 +54,7 @@ export function FundWatchPanel({ subject }: { subject: ChainSubject }) {
         }
       >
         Fund watch
-      </button>
+      </Button>
       <TxState status={write.status} hash={write.hash} error={write.error} confirmedLabel="bounty funded" />
     </ActionShell>
   );

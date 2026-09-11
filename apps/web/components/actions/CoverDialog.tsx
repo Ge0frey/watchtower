@@ -5,6 +5,7 @@ import { useAccount, useReadContract } from 'wagmi';
 import { formatCtc, formatUsd, underwritingVaultAbi } from '@watchtower/shared';
 import { VAULT, type ChainSubject } from '@/hooks/useChainState';
 import { useWatchtowerWrite } from '@/hooks/useWatchtowerWrite';
+import { Button, Field, Input, Row } from '@/components/ui';
 import { ActionShell, ConnectGate, TxState } from './TxButton';
 
 const THIRTY_DAYS = 30n * 24n * 60n * 60n;
@@ -54,35 +55,34 @@ export function CoverDialog({ subject }: { subject: ChainSubject }) {
   return (
     <ActionShell title="Buy cover" hint="1% of cover per 30 days">
       {held !== undefined && (held as bigint) > 0n && (
-        <p className="dim small">You hold {formatUsd(held as bigint)} of cover on this subject.</p>
+        <p className="rounded-md border border-settled/30 px-3.5 py-2.5 font-mono text-[11px] text-settled">
+          you hold {formatUsd(held as bigint)} of cover here
+        </p>
       )}
 
-      <div className="field-row">
-        <label className="field-label" htmlFor={`cover-${subject.id}`}>cover (USD)</label>
-        <input
-          id={`cover-${subject.id}`}
-          className="input mono"
+      <Field label="cover (USD)">
+        <Input
           value={dollars}
           onChange={(e) => setDollars(e.target.value.replace(/[^0-9.]/g, ''))}
           inputMode="decimal"
         />
+      </Field>
+
+      <div>
+        <Row label="cover" value={formatUsd(coverUsd)} />
+        <Row label="premium" value={formatCtc(premium, 4)} />
+        <Row label="term" value="30 days" />
       </div>
 
-      <dl className="quote">
-        <div><dt>cover</dt><dd>{formatUsd(coverUsd)}</dd></div>
-        <div><dt>premium</dt><dd>{formatCtc(premium, 4)}</dd></div>
-        <div><dt>term</dt><dd>30 days</dd></div>
-      </dl>
-
       <ConnectGate {...write} />
-      <button className="btn" disabled={!write.canWrite || write.busy || coverUsd === 0n} onClick={buy}>
+      <Button disabled={!write.canWrite || write.busy || coverUsd === 0n} onClick={buy}>
         {write.busy ? 'working…' : 'Buy cover'}
-      </button>
+      </Button>
       <TxState status={write.status} hash={write.hash} error={write.error} confirmedLabel="cover active" />
 
-      <p className="dim small">
-        You never file a claim. If the rule below is ever proven against this subject, restitution is
-        paid to your wallet automatically, capped by your cover.
+      <p className="text-[13px] leading-relaxed text-ink/50">
+        You never file a claim. If the rule bound to this subject is ever proven, restitution is paid
+        to your wallet automatically, capped by your cover.
       </p>
     </ActionShell>
   );

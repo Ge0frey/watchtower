@@ -19,19 +19,30 @@ export function ConnectButton() {
   const { disconnect } = useDisconnect();
   const { switchChain, isPending: switching } = useSwitchChain();
 
+  const base =
+    'inline-flex shrink-0 items-center gap-2 rounded-md border px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors disabled:pointer-events-none disabled:border-ink/10 disabled:bg-paper-dim disabled:text-ink/35';
+
   const wrongNetwork = isConnected && chainId !== creditcoinTestnet.id;
 
   if (wrongNetwork) {
     return (
-      <button className="btn btn-warn" disabled={switching} onClick={() => switchChain({ chainId: creditcoinTestnet.id })}>
-        {switching ? 'switching…' : 'Switch to Creditcoin'}
+      <button
+        className={`${base} border-breach bg-breach text-paper hover:bg-transparent hover:text-breach`}
+        disabled={switching}
+        onClick={() => switchChain({ chainId: creditcoinTestnet.id })}
+      >
+        {switching ? 'switching…' : 'Wrong network'}
       </button>
     );
   }
 
   if (isConnected && address) {
     return (
-      <button className="btn btn-ghost mono" onClick={() => disconnect()} title="disconnect">
+      <button
+        className={`${base} border-ink/25 text-ink/75 hover:border-ink hover:text-ink`}
+        onClick={() => disconnect()}
+        title="disconnect"
+      >
         {shortHash(address)}
       </button>
     );
@@ -40,7 +51,7 @@ export function ConnectButton() {
   const injected = connectors[0];
   return (
     <button
-      className="btn"
+      className={`${base} border-accent bg-accent text-ink hover:border-accent-deep hover:bg-accent-deep hover:text-paper`}
       disabled={!injected || isPending}
       onClick={() => injected && connect({ connector: injected })}
       title={injected ? 'connect an injected wallet' : 'no wallet detected in this browser'}

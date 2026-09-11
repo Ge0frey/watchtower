@@ -5,6 +5,7 @@ import { RULES, watchtowerCoreAbi, type Incident } from '@watchtower/shared';
 import { CORE } from '@/hooks/useChainState';
 import { useWatchtowerWrite } from '@/hooks/useWatchtowerWrite';
 import { api } from '@/lib/api';
+import { Button, Field, Input, Notice } from '@/components/ui';
 import { ActionShell, ConnectGate, TxState } from './TxButton';
 
 /**
@@ -63,12 +64,11 @@ export function ChallengePanel({ incident }: { incident: Incident }) {
     >
       {expired ? (
         <>
-          <p className="dim small">
+          <p className="text-[13px] leading-relaxed text-ink/50">
             Nobody showed a skipped transaction inside the claimed range. The claim can now be paid.
           </p>
           <ConnectGate {...write} />
-          <button
-            className="btn"
+          <Button
             disabled={!write.canWrite || write.busy}
             onClick={() =>
               write.send({
@@ -80,30 +80,32 @@ export function ChallengePanel({ incident }: { incident: Incident }) {
             }
           >
             Settle breach
-          </button>
+          </Button>
         </>
       ) : (
         <>
-          <p className="dim small">
-            If this prosecutor skipped a transaction from this custodian between their starting cursor
-            and the entry they filed, prove it. The accumulator rolls back and their bond is yours.
+          <p className="text-[13px] leading-relaxed text-ink/50">
+            If this prosecutor skipped a transaction from this custodian between their starting
+            cursor and the entry they filed, prove it. The accumulator rolls back and their bond is
+            yours.
           </p>
-          <div className="field-row">
-            <label className="field-label" htmlFor={`gap-${incident.id}`}>skipped tx hash (Sepolia)</label>
-            <input
-              id={`gap-${incident.id}`}
-              className="input mono"
+          <Field label="skipped tx hash (Sepolia)">
+            <Input
               placeholder="0x…"
               value={txHash}
               onChange={(e) => setTxHash(e.target.value)}
               spellCheck={false}
             />
-          </div>
+          </Field>
           <ConnectGate {...write} />
-          <button className="btn btn-warn" disabled={!write.canWrite || write.busy || preparing || !valid} onClick={challenge}>
+          <Button
+            variant="danger"
+            disabled={!write.canWrite || write.busy || preparing || !valid}
+            onClick={challenge}
+          >
             {preparing ? 'building proof…' : 'Submit gap proof'}
-          </button>
-          {prepError && <div className="tx-state tx-error">{prepError}</div>}
+          </Button>
+          {prepError && <Notice tone="breach">{prepError}</Notice>}
         </>
       )}
 
