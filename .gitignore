@@ -1,0 +1,41 @@
+# --- secrets -------------------------------------------------------------
+# Deny every .env variant, then allow back only the committed template.
+# The broad pattern is deliberate: `.env.bak`, `.env.bak.<timestamp>` and `contracts/.env`
+# (a symlink to the root file) are all full copies of the real environment, private keys included.
+.env
+.env.*
+*.env
+!.env.example
+
+# Foundry writes "sensitive values" - RPC URLs with embedded API keys, and signer metadata -
+# alongside its broadcast artefacts.
+cache/
+broadcast/
+contracts/cache/
+contracts/broadcast/
+
+# Wallet material, if any ever lands here.
+*.key
+*.pem
+keystore/
+*keystore*
+
+# --- build output --------------------------------------------------------
+node_modules/
+dist/
+.next/
+out/
+contracts/out/
+contracts/lib/
+contracts/foundry-pp/
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# --- runtime state -------------------------------------------------------
+.data/
+*.log
+
+# --- editor / os ---------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/

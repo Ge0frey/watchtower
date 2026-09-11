@@ -1,0 +1,32 @@
+{
+  "name": "watchtower",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Proof-native insurance for Ethereum, underwritten on Creditcoin via the Attestcoin Protocol.",
+  "packageManager": "pnpm@10.30.2",
+  "scripts": {
+    "build:contracts": "cd contracts && forge build",
+    "test:contracts": "cd contracts && forge test -vv",
+    "typecheck": "pnpm -r --filter './packages/*' --filter './apps/*' exec tsc --noEmit",
+    "thesis": "pnpm --filter @watchtower/attestcoin thesis",
+    "worker": "pnpm --filter @watchtower/prosecutor dev",
+    "web": "pnpm --filter @watchtower/web dev",
+    "abis": "node scripts/abis.mjs",
+    "verify:precompile": "pnpm --filter @watchtower/attestcoin verify:precompile",
+    "verify": "pnpm build:contracts && pnpm test:contracts && pnpm typecheck",
+    "balances": "node scripts/balances.mjs",
+    "deploy:creditcoin": "node scripts/deploy-creditcoin.mjs",
+    "seed": "node scripts/seed-demo.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "ethers": "^6.17.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@gluwa/asc-contracts": "0.2.1",
+    "@openzeppelin/contracts": "5.4.0"
+  }
+}
