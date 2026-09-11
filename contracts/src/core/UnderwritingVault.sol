@@ -54,6 +54,23 @@ contract UnderwritingVault is IUnderwritingVault, Ownable, ReentrancyGuard {
 
     mapping(bytes32 => Tranche) public tranches;
     mapping(bytes32 => mapping(address => uint256)) public stakeOf;
+
+    /// @notice Sum of every underwriter's stake on a subject.
+    /// @dev Deliberately NOT the same quantity as `Tranche.staked`. A payout reduces the tranche but
+    ///      not anybody's individual position, so the two diverge the moment a claim is paid.
+    ///      Premiums are shared over the positions that actually exist, which is what keeps each
+    ///      underwriter's entitlement proportional to what they put in.
+    mapping(bytes32 => uint256) public totalShares;
+
+    /// @notice Premium accrued per unit of stake, scaled by 1e18.
+    mapping(bytes32 => uint256) public premiumPerShare;
+    mapping(bytes32 => mapping(address => uint256)) private _premiumDebt;
+
+    /// @notice Premiums paid on a subject nobody was underwriting yet.
+    mapping(bytes32 => uint256) public unallocatedPremiums;
+
+    uint256 private constant ACC_PRECISION = 1e18;
+
     mapping(bytes32 => uint256) public bountyPool;
     mapping(bytes32 => bool) public frozen;
     mapping(bytes32 => address) public override primaryHolder;
@@ -70,6 +87,7 @@ contract UnderwritingVault is IUnderwritingVault, Ownable, ReentrancyGuard {
     event CoverBought(bytes32 indexed subjectId, address indexed holder, uint256 coverUsd, uint64 expiry, uint256 premium);
     event Staked(bytes32 indexed subjectId, address indexed staker, uint256 amount);
     event Unstaked(bytes32 indexed subjectId, address indexed staker, uint256 amount);
+    event PremiumsClaimed(bytes32 indexed subjectId, address indexed staker, uint256 amount);
     event WatchFunded(bytes32 indexed subjectId, address indexed funder, uint256 amount);
     event Settled(
         bytes32 indexed incidentId,
@@ -138,6 +156,7 @@ contract UnderwritingVault is IUnderwritingVault, Ownable, ReentrancyGuard {
         });
 
         tranches[subjectId].premiums += msg.value;
+        _accruePremium(subjectId, msg.value);
         emit CoverBought(subjectId, msg.sender, coverUsd, policies[id].expiry, msg.value);
     }
 
@@ -152,9 +171,13 @@ contract UnderwritingVault is IUnderwritingVault, Ownable, ReentrancyGuard {
     // ------------------------------------------------------------ liquidity
 
     function stake(bytes32 subjectId) external payable nonReentrant {
+        uint256 owed = _settlePremiums(subjectId, msg.sender);
         tranches[subjectId].staked += msg.value;
         stakeOf[subjectId][msg.sender] += msg.value;
+        totalShares[subjectId] += msg.value;
+        _resetDebt(subjectId, msg.sender);
         emit Staked(subjectId, msg.sender, msg.value);
+        if (owed > 0) _send(msg.sender, owed);
     }
 
     /// @notice Withdraw stake. Blocked while the subject has an unresolved breach - underwriters
@@ -162,10 +185,58 @@ contract UnderwritingVault is IUnderwritingVault, Ownable, ReentrancyGuard {
     function unstake(bytes32 subjectId, uint256 amount) external nonReentrant {
         if (frozen[subjectId]) revert SubjectFrozen();
         if (stakeOf[subjectId][msg.sender] < amount || tranches[subjectId].staked < amount) revert InsufficientStake();
+        uint256 owed = _settlePremiums(subjectId, msg.sender);
         stakeOf[subjectId][msg.sender] -= amount;
         tranches[subjectId].staked -= amount;
-        _send(msg.sender, amount);
+        totalShares[subjectId] -= amount;
+        _resetDebt(subjectId, msg.sender);
+        _send(msg.sender, amount + owed);
         emit Unstaked(subjectId, msg.sender, amount);
+    }
+
+    /// @notice Collect the premiums your stake has earned, without touching the stake itself.
+    /// @dev Underwriting is only a business if the income actually arrives. Premiums accrue per unit
+    ///      of stake at the moment cover is bought, so an underwriter earns from the policies written
+    ///      while they were backing the subject and nothing from the ones written before they staked.
+    function claimPremiums(bytes32 subjectId) external nonReentrant returns (uint256 amount) {
+        amount = _settlePremiums(subjectId, msg.sender);
+        _resetDebt(subjectId, msg.sender);
+        if (amount == 0) return 0;
+        _send(msg.sender, amount);
+    }
+
+    /// @notice Premiums `staker` could claim on `subjectId` right now.
+    function claimablePremiums(bytes32 subjectId, address staker) public view returns (uint256) {
+        uint256 accrued = (stakeOf[subjectId][staker] * premiumPerShare[subjectId]) / ACC_PRECISION;
+        uint256 debt = _premiumDebt[subjectId][staker];
+        return accrued > debt ? accrued - debt : 0;
+    }
+
+    /// @dev Splits `amount` across the stake that exists right now. With nothing staked there is
+    ///      nobody to pay, so the premium is parked rather than silently credited to whoever stakes
+    ///      next - that would pay an underwriter for risk they never carried.
+    function _accruePremium(bytes32 subjectId, uint256 amount) private {
+        uint256 shares = totalShares[subjectId];
+        if (shares == 0) {
+            unallocatedPremiums[subjectId] += amount;
+            return;
+        }
+        premiumPerShare[subjectId] += (amount * ACC_PRECISION) / shares;
+    }
+
+    /// @dev Books what is owed and emits the claim. The transfer is the caller's job, after its own
+    ///      state is settled - never before.
+    function _settlePremiums(bytes32 subjectId, address staker) private returns (uint256 amount) {
+        amount = claimablePremiums(subjectId, staker);
+        if (amount == 0) return 0;
+        // `Tranche.premiums` stays cumulative - it is the subject's lifetime income, not a balance.
+        // Double-claiming is prevented by the per-staker debt, not by draining a counter.
+        emit PremiumsClaimed(subjectId, staker, amount);
+    }
+
+    function _resetDebt(bytes32 subjectId, address staker) private {
+        _premiumDebt[subjectId][staker] =
+            (stakeOf[subjectId][staker] * premiumPerShare[subjectId]) / ACC_PRECISION;
     }
 
     /// @notice Put a bounty on any subject. This is what makes "permissionless prosecutors" a market

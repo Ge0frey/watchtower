@@ -28,11 +28,22 @@ export function StakePanel({ subject }: { subject: ChainSubject }) {
     query: { enabled: Boolean(address) },
   });
 
+  // Premiums accrue per unit of stake the moment cover is bought. Showing the lifetime figure
+  // without showing what is actually yours would be advertising income nobody can collect.
+  const { data: myPremiums } = useReadContract({
+    address: VAULT,
+    abi: underwritingVaultAbi,
+    functionName: 'claimablePremiums',
+    args: address ? [subject.id, address] : undefined,
+    query: { enabled: Boolean(address), refetchInterval: 5000 },
+  });
+
   const wei = (() => {
     try { return parseEther(amount || '0'); } catch { return 0n; }
   })();
 
   const staked = (myStake as bigint | undefined) ?? 0n;
+  const claimable = (myPremiums as bigint | undefined) ?? 0n;
 
   return (
     <ActionShell title="Underwrite" hint="earn premiums, bear payout risk">
@@ -41,6 +52,7 @@ export function StakePanel({ subject }: { subject: ChainSubject }) {
         <div><dt>premiums</dt><dd>{formatCtc(subject.premiums, 4)}</dd></div>
         <div><dt>paid out</dt><dd>{formatCtc(subject.paidOut, 2)}</dd></div>
         <div><dt>your stake</dt><dd>{formatCtc(staked, 4)}</dd></div>
+        <div><dt>your premiums</dt><dd>{formatCtc(claimable, 4)}</dd></div>
       </dl>
 
       <div className="field-row">
@@ -88,7 +100,28 @@ export function StakePanel({ subject }: { subject: ChainSubject }) {
         >
           Unstake
         </button>
+
+        <button
+          className="btn btn-ghost"
+          disabled={!write.canWrite || write.busy || claimable === 0n}
+          title="premiums earned by your stake, without withdrawing the stake"
+          onClick={() =>
+            write.send({
+              address: VAULT,
+              abi: underwritingVaultAbi,
+              functionName: 'claimPremiums',
+              args: [subject.id],
+            })
+          }
+        >
+          Claim premiums
+        </button>
       </div>
+
+      <p className="dim small">
+        Unstaking pays out any premiums owed in the same transaction &mdash; claiming separately is
+        only for taking the income while leaving the capital at work.
+      </p>
 
       {subject.frozen && (
         <p className="notice small">

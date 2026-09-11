@@ -76,6 +76,12 @@ contract FailedTx is IConservationRule {
     /// @dev Gas price lives in the type-specific chunk, not the receipt. For EIP-1559 transactions the
     ///      encoding carries `maxFeePerGas` rather than the effective price, so the reimbursement is
     ///      an upper bound - stated here rather than buried, and capped by the policy either way.
+    ///
+    ///      Types 0, 1 and 2 are every transaction a user actually sends and sees revert. The decoder
+    ///      ships helpers for 0 and 2 only, so type 1 (EIP-2930) is read from its chunk directly
+    ///      against the library's own `Type1Fields` layout. Types 3 and 4 carry a fourth chunk whose
+    ///      split the decoder does not expose, so they are refused loudly rather than mis-read: a
+    ///      blob or delegation transaction would otherwise be reimbursed from the wrong field.
     function _gasPrice(bytes memory encodedTx) private pure returns (uint256) {
         uint8 txType = EvmV1Decoder.getTransactionType(encodedTx);
         if (txType == 0) {
@@ -83,6 +89,15 @@ contract FailedTx is IConservationRule {
         }
         if (txType == 2) {
             return uint256(EvmV1Decoder.decodeTransactionType2(encodedTx).type2.maxFeePerGas);
+        }
+        if (txType == 1) {
+            (, bytes[] memory chunks) = abi.decode(encodedTx, (uint8, bytes[]));
+            if (chunks.length != 3) revert UnsupportedTxType(txType);
+            (, uint128 gasPrice,,,,) = abi.decode(
+                chunks[1],
+                (uint64, uint128, EvmV1Decoder.AccessListEntryBytes32[], uint8, bytes32, bytes32)
+            );
+            return uint256(gasPrice);
         }
         revert UnsupportedTxType(txType);
     }

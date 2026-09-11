@@ -5,6 +5,7 @@ import { formatCtc, formatUsd } from '@watchtower/shared';
 import { IncidentCard } from '@/components/IncidentCard';
 import { deployed, useChainState } from '@/hooks/useChainState';
 import { useIncidentFeed } from '@/hooks/useIncidentFeed';
+import { useWorkerStatus } from '@/hooks/useWorkerStatus';
 
 /**
  * The overview: what this is, and proof that it is running.
@@ -15,6 +16,7 @@ import { useIncidentFeed } from '@/hooks/useIncidentFeed';
 export default function Overview() {
   const { data: subjects = [], isLoading } = useChainState();
   const { incidents } = useIncidentFeed();
+  const { offline } = useWorkerStatus();
 
   const staked = subjects.reduce((sum, s) => sum + s.staked, 0n);
   const paidOut = subjects.reduce((sum, s) => sum + s.paidOut, 0n);
@@ -81,9 +83,11 @@ export default function Overview() {
         ))}
         {incidents.length === 0 && (
           <div className="empty">
-            <p>No incidents yet.</p>
+            <p>{offline ? 'Verdict history unavailable.' : 'No incidents yet.'}</p>
             <p className="dim small">
-              The prosecutor is watching a Uniswap pool on Ethereum mainnet and a bridge on Sepolia.
+              {offline
+                ? 'The prosecutor worker is not reachable. Everything above is read from Creditcoin and is current.'
+                : 'The prosecutor is watching a Uniswap pool on Ethereum mainnet and a bridge on Sepolia.'}
             </p>
           </div>
         )}

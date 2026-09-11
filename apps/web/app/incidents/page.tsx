@@ -6,6 +6,7 @@ import { RULES, ruleByIdOrNull, type Incident } from '@watchtower/shared';
 import { IncidentCard } from '@/components/IncidentCard';
 import { useChainState } from '@/hooks/useChainState';
 import { useIncidentFeed } from '@/hooks/useIncidentFeed';
+import { useWorkerStatus } from '@/hooks/useWorkerStatus';
 
 type Filter = 'all' | 'settled' | 'open' | 'rolled-back';
 
@@ -13,6 +14,7 @@ type Filter = 'all' | 'settled' | 'open' | 'rolled-back';
 export default function IncidentsPage() {
   const { incidents, candidates, progress } = useIncidentFeed();
   const { data: subjects = [] } = useChainState();
+  const { offline } = useWorkerStatus();
   const [status, setStatus] = useState<Filter>('all');
   const [ruleId, setRuleId] = useState<string>('all');
 
@@ -77,10 +79,11 @@ export default function IncidentsPage() {
 
       {shown.length === 0 && inFlight.length === 0 && (
         <div className="empty">
-          <p>Nothing matches.</p>
+          <p>{offline ? 'History is unavailable.' : 'Nothing matches.'}</p>
           <p className="dim small">
-            Watchtower proves two things Ethereum cannot check for itself: that a searcher bracketed a
-            swap inside one block, and that a custodian minted more than it locked.
+            {offline
+              ? 'Incidents are served by the prosecutor worker, which is not reachable. Subjects, balances and every wallet action still work \u2014 those come from the chain.'
+              : 'Watchtower proves two things Ethereum cannot check for itself: that a searcher bracketed a swap inside one block, and that a custodian minted more than it locked.'}
           </p>
         </div>
       )}

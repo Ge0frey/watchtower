@@ -121,11 +121,31 @@ Watchtower reads freshness off the proof itself rather than off a clock:
 No oracle, no timestamp, nothing to game — the prosecutor's incentive is derived from the protocol's
 own cost curve. — `contracts/src/core/UnderwritingVault.sol`.
 
+## 5.1 What it actually costs, measured
+
+Not from the documentation — from our own receipts on CC3 Testnet. `MAX_GAS_CAP` is 75,000,000, so
+the percentage is of one whole Creditcoin block:
+
+| Submission | Continuity roots | Gas used | Share of a block |
+|---|---|---|---|
+| `IntraBlockExtraction`, **three transactions** in one batch call, one shared continuity proof | 1 | 1,233,005 | **1.64 %** |
+| `ChainlinkFeed`, one transaction | 4 | 519,540 | **0.69 %** |
+| `ReserveConservation`, one transaction | 50 | 502,390 | **0.67 %** |
+
+The first row is the claim worth quoting: a complete sandwich prosecution — three Ethereum
+transactions verified, three indices derived from the precompile, three receipts decoded, a rule
+evaluated and the vault moved — costs under two percent of one Creditcoin block. Receipt:
+[`0x9cad…9308`](https://creditcoin-testnet.blockscout.com/tx/0x9cad4c89ea95410e08896de3ae35d96a978348a9cc1a082824377f5505d29308).
+
+The worker logs `gasAsPercentageOfMax(receipt.gasUsed)` for every submission, so this table is
+reproducible rather than quoted: run the worker and read the `[queue] … settled in …` line.
+
 ## 6. Verifying our own assumptions
 
-Two checks in the repository confirm the integration against the live chain rather than against docs:
+Three checks in the repository confirm the integration against the live chain rather than against
+docs:
 
-**`pnpm --filter @watchtower/attestcoin verify:precompile`** asks the live precompile at `0x0FD2` to
+**`pnpm verify:precompile`** asks the live precompile at `0x0FD2` to
 read back sibling paths built for known indices. It passes for indices 0 … 4095, which is what makes
 the offline unit suite trustworthy: `MockBlockProver` derives indices the same way the chain does.
 
@@ -141,6 +161,23 @@ The precompile uses the same convention as MockBlockProver.
 sandwich: the SDK's `txIndex`, the precompile's `calculateTxIndex`, and the true Etherscan index must
 all agree, and the three-transaction window must verify through the batch overload with one shared
 continuity proof.
+
+**`pnpm capture <txHash>…` then `forge test --match-path test/unit/FixtureReplay.t.sol`** freezes a
+real proof bundle into `fixtures/` and replays it offline. It asserts that the index derived from the
+*real* Merkle sibling path equals the index the Proof Builder reported for that transaction, and that
+`EvmV1Decoder` decodes the *real* `encodedTransaction` bytes — real receipts, real logs:
+
+```
+replaying fixtures/sepolia-bridge-locked.json
+  block 11681051 index 74
+  from 0x4741BEC65e687F15d5b7E28bbc3F289d29C253f4
+  status 1 logs 1
+```
+
+This is the Day-1 thesis committed as a test rather than left in a script's output. Every other suite
+uses synthesised transactions, which proves the logic and not the decoding; this one proves the
+decoding. It skips, loudly, when no fixture has been captured, so a clone with no API keys still runs
+the offline suite green.
 
 The worker also asserts the chainKey mapping at boot and refuses to start if it is wrong:
 
@@ -184,3 +221,9 @@ reimbursed on Creditcoin. Readability proves the harm; writability undoes it.
 | Gas limits | `packages/attestcoin/src/gas.ts` |
 | Day-1 thesis check | `packages/attestcoin/src/scripts/thesis.ts` |
 | Precompile conformance | `packages/attestcoin/src/scripts/verify-precompile.ts` |
+| Real-bundle capture | `packages/attestcoin/src/scripts/capture-fixtures.ts` |
+| Real-bundle replay, offline | `contracts/test/unit/FixtureReplay.t.sol` |
+| Staged gap, for the fraud-proof demo | `packages/attestcoin/src/scripts/demo-skip-gap.ts` |
+| Finding a live mainnet sandwich | `scripts/find-sandwich.mjs` |
+| Registering and funding a watch on any address | `scripts/watch-address.mjs` |
+| Fuzzed invariants | `contracts/test/unit/Invariants.t.sol` |

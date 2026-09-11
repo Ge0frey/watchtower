@@ -170,6 +170,49 @@ contract ReserveConservationTest is Base {
         assertEq(locked, 0, "only the custodian's own events count");
     }
 
+    /// @notice A stream can break twice before anybody settles the first claim. Settling one must
+    ///         not open an exit for underwriters while the other is still in dispute.
+    function test_secondBreachKeepsTheTrancheFrozen() public {
+        _ingest("Locked(address,uint256)", 10 ether, 1001, 3);
+
+        bytes memory firstOverMint = _custodianTx("Minted(address,uint256)", 11 ether);
+        EvidenceInput memory first =
+            singleEvidence(bridgeSubject, reserve.ruleId(), SEPOLIA, 1002, 1, firstOverMint, 10);
+        vm.prank(prosecutor);
+        bytes32 firstIncident = core.submitEvidence{value: 0.1 ether}(first);
+
+        bytes memory secondOverMint = _custodianTx("Minted(address,uint256)", 1 ether);
+        EvidenceInput memory second =
+            singleEvidence(bridgeSubject, reserve.ruleId(), SEPOLIA, 1003, 0, secondOverMint, 10);
+        vm.prank(prosecutor);
+        bytes32 secondIncident = core.submitEvidence{value: 0.1 ether}(second);
+
+        assertEq(core.openBreaches(bridgeSubject), 2);
+
+        vm.warp(block.timestamp + 11 minutes);
+        core.settleBreach(firstIncident);
+
+        assertEq(core.openBreaches(bridgeSubject), 1);
+        assertTrue(vault.frozen(bridgeSubject), "one claim paid, one still in dispute");
+
+        vm.prank(underwriter);
+        vm.expectRevert(abi.encodeWithSignature("SubjectFrozen()"));
+        vault.unstake(bridgeSubject, 1 ether);
+
+        core.settleBreach(secondIncident);
+        assertEq(core.openBreaches(bridgeSubject), 0);
+        assertFalse(vault.frozen(bridgeSubject), "nothing left in dispute");
+    }
+
+    /// @notice Before the first ingestion the proven head is the subject's anchor, not zero - it is
+    ///         the coordinate the core will actually enforce against the first submission.
+    function test_provenHeadStartsAtTheAnchor() public view {
+        (uint64 height, uint32 index) = core.latestProvenHead(bridgeSubject);
+        assertEq(height, 1000, "DemoBridge anchor");
+        assertEq(index, 0);
+        assertEq(core.stateOf(bridgeSubject).cursorHeight, 1000, "the dashboard reads the same cursor");
+    }
+
     /// @notice A batch is capped at 10 transactions sharing one continuity proof.
     function test_batchOfTenIsAccepted() public {
         uint64[] memory heights = new uint64[](10);

@@ -54,6 +54,38 @@ library TxFixture {
         return abi.encode(uint8(2), chunks);
     }
 
+    /// @notice An EIP-2930 (type 1) transaction with a receipt.
+    /// @dev Same three-chunk shape as legacy and 1559; only the type-specific chunk differs, laid out
+    ///      per `EvmV1Decoder.Type1Fields`.
+    function eip2930(address from, address to, uint8 status, uint64 gasUsed, uint128 gasPrice, Log[] memory logs)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes[] memory chunks = new bytes[](3);
+        chunks[0] = abi.encode(uint64(3), uint64(150000), from, false, to, uint256(0), bytes(""));
+        EvmV1Decoder.AccessListEntryBytes32[] memory accessList = new EvmV1Decoder.AccessListEntryBytes32[](0);
+        chunks[1] = abi.encode(uint64(1), gasPrice, accessList, uint8(0), bytes32(0), bytes32(0));
+        chunks[2] = _receiptChunk(status, gasUsed, logs);
+        return abi.encode(uint8(1), chunks);
+    }
+
+    /// @notice An EIP-4844 (type 3) transaction. Four chunks, and the receipt moves to chunk[3].
+    /// @dev Used only to assert that the rules refuse what they cannot decode rather than guessing.
+    function blobTx(address from, address to, uint8 status, uint64 gasUsed, Log[] memory logs)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes[] memory chunks = new bytes[](4);
+        chunks[0] = abi.encode(uint64(9), uint64(200000), from, false, to, uint256(0), bytes(""));
+        EvmV1Decoder.AccessListEntryBytes32[] memory accessList = new EvmV1Decoder.AccessListEntryBytes32[](0);
+        chunks[1] = abi.encode(uint64(1), uint128(1 gwei), uint128(30 gwei), accessList, uint8(0), bytes32(0), bytes32(0));
+        chunks[2] = abi.encode(uint256(1 gwei), new bytes32[](0));
+        chunks[3] = _receiptChunk(status, gasUsed, logs);
+        return abi.encode(uint8(3), chunks);
+    }
+
     function _receiptChunk(uint8 status, uint64 gasUsed, Log[] memory logs) private pure returns (bytes memory) {
         EvmV1Decoder.LogEntryTuple[] memory entries = new EvmV1Decoder.LogEntryTuple[](logs.length);
         for (uint256 i; i < logs.length; ++i) {

@@ -15,9 +15,17 @@ import { config } from './config.js';
  * writes them, because the Attestcoin SDK is ethers-only and its gas helper takes an ethers Contract.
  * Mixing them in one process is fine and keeps each library where it is strongest.
  */
+/**
+ * JSON-RPC batching, not Multicall3.
+ *
+ * CC3 Testnet has no Multicall3 - `0xcA11bde0…` holds no code - so viem's `multicall` action throws
+ * `Chain "Creditcoin CC3 Testnet" does not support contract "multicall3"` outright. The node does
+ * accept JSON-RPC batch arrays, which gets the same property the dashboard actually wants: many
+ * `eth_call`s, one HTTP round trip. Calls issued in the same tick are grouped automatically.
+ */
 export const publicClient = createPublicClient({
   chain: creditcoinTestnet,
-  transport: http(config.cc3Rpc),
+  transport: http(config.cc3Rpc, { batch: { wait: 16 } }),
 });
 
 export const ethersProvider = new JsonRpcProvider(config.cc3Rpc);
@@ -57,8 +65,9 @@ export const contracts = {
 /**
  * Every subject in the catalogue, with its live accumulator.
  *
- * `allSubjects` returns the whole registry in one call and `multicall` batches the accumulator reads,
- * so a full dashboard snapshot costs two RPC round trips no matter how many subjects exist.
+ * `allSubjects` returns the whole registry in one call, and the accumulator reads are issued together
+ * so the batching transport folds them into a single HTTP request - two round trips for a full
+ * snapshot, however many subjects exist.
  */
 export async function readSubjects() {
   const [ids, items] = await publicClient.readContract({
@@ -66,10 +75,9 @@ export async function readSubjects() {
     functionName: 'allSubjects',
   });
 
-  const states = await publicClient.multicall({
-    contracts: ids.map((id) => ({ ...contracts.core, functionName: 'stateOf', args: [id] }) as const),
-    allowFailure: false,
-  });
+  const states = await Promise.all(
+    ids.map((id) => publicClient.readContract({ ...contracts.core, functionName: 'stateOf', args: [id] })),
+  );
 
   return ids.map((id, i) => ({
     id,

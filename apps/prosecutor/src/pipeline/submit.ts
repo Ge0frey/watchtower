@@ -37,8 +37,8 @@ export async function prosecute(candidate: Candidate, valueWei = 0n): Promise<Su
   store.setCandidateState(candidate.id, 'AWAITING_ATTESTATION');
 
   const bundle = await buildEvidenceBundle(client, candidate.chainKey as ChainKey, candidate.txHashes, {
-    waiting: (blockHeight) =>
-      bus.publish({ type: 'proof.waiting', candidateId: candidate.id, blockHeight, attestedHeight: 0 }),
+    waiting: (blockHeight, attestedHeight) =>
+      bus.publish({ type: 'proof.waiting', candidateId: candidate.id, blockHeight, attestedHeight }),
     building: () => {
       store.setCandidateState(candidate.id, 'PROVING');
       bus.publish({ type: 'proof.building', candidateId: candidate.id });

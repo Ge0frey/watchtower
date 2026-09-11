@@ -45,9 +45,16 @@ export function useIncidentFeed(): FeedState {
           setProgress((p) => ({ ...p, [event.candidate.id]: 'detected' }));
           break;
         case 'proof.waiting':
+          // Name the distance, never a bare wait: attestation runs to about eight minutes end to end,
+          // and "42 blocks behind" reads as a system working where a spinner reads as a hang.
           setProgress((p) => ({
             ...p,
-            [event.candidateId]: `waiting for attestation of block ${event.blockHeight.toLocaleString()}`,
+            [event.candidateId]: event.attestedHeight
+              ? `waiting for attestation of block ${event.blockHeight.toLocaleString()} · attested through ${event.attestedHeight.toLocaleString()} (${Math.max(
+                  0,
+                  event.blockHeight - event.attestedHeight,
+                ).toLocaleString()} behind, ~8 min)`
+              : `waiting for attestation of block ${event.blockHeight.toLocaleString()} (~8 min)`,
           }));
           break;
         case 'proof.building':
@@ -79,7 +86,7 @@ export function useIncidentFeed(): FeedState {
         default:
           break;
       }
-    });
+    }, (up) => mounted.current && setConnected(up));
 
     return () => {
       mounted.current = false;

@@ -98,6 +98,17 @@ async function main() {
   };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+
+  // Five independent loops share this process, and Node's default for an unhandled rejection is to
+  // kill all five. One RPC that times out inside a callback should cost one tick, not the whole
+  // prosecutor - the scanners re-detect, the queue retries, and the on-chain replay guard makes a
+  // duplicate attempt harmless. Log loudly and keep watching.
+  process.on('unhandledRejection', (reason) => {
+    console.error('[worker] unhandled rejection:', reason instanceof Error ? reason.message : reason);
+  });
+  process.on('uncaughtException', (error) => {
+    console.error('[worker] uncaught exception:', error.message);
+  });
 }
 
 main().catch((error) => {

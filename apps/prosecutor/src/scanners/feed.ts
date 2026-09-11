@@ -6,6 +6,7 @@ import { store } from '../db/store.js';
 import { queue } from '../pipeline/queue.js';
 import { getLogsChunked } from '../rpc.js';
 import { rpcTransport } from '../transport.js';
+import { hasWorkInFlight, isAfter, provenCursor } from './cursor.js';
 
 const ANSWER_UPDATED = topicHash(TOPICS.answerUpdated) as Hex;
 
@@ -17,6 +18,10 @@ const ANSWER_UPDATED = topicHash(TOPICS.answerUpdated) as Hex;
  *
  * The address watched must be the AGGREGATOR, not the consumer-facing proxy: `AnswerUpdated` is
  * emitted by the aggregator.
+ *
+ * Like the reserve stream, the feed is a `SEQUENTIAL_STREAM` rule, so the chain's own cursor decides
+ * what counts as new. Sampling a round the accumulator has already passed would simply revert with
+ * `CursorRegression` and burn the gas finding out.
  */
 export function startFeedScanner(opts: {
   rpcUrls: (string | undefined)[];
@@ -31,29 +36,30 @@ export function startFeedScanner(opts: {
 
   async function tick() {
     try {
+      if (hasWorkInFlight(opts.subjectId)) return;
+
+      const cursor = await provenCursor(opts.subjectId);
       const head = Number(await client.getBlockNumber());
       const safeHead = head - config.confirmations;
-      const from = store.lastScanned(key) ?? Math.max(opts.anchorHeight, safeHead - 2000);
-      if (safeHead <= from) return;
+      const watermark = store.lastScanned(key) ?? Math.max(opts.anchorHeight, safeHead - 2000);
+      const from = Math.max(cursor.height, watermark, opts.anchorHeight);
+      if (safeHead < from) return;
 
       const to = Math.min(safeHead, from + 2000);
       const logs = await getLogsChunked(
         client,
-        { address: opts.aggregator, fromBlock: BigInt(from + 1), toBlock: BigInt(to) },
+        { address: opts.aggregator, fromBlock: BigInt(from), toBlock: BigInt(to) },
         config.logRange,
       );
 
       const rounds = logs
         .filter((l) => l.topics[0]?.toLowerCase() === ANSWER_UPDATED.toLowerCase())
+        .filter((l) => isAfter(cursor, Number(l.blockNumber), l.transactionIndex))
         .sort((a, b) => Number(a.blockNumber - b.blockNumber) || a.transactionIndex - b.transactionIndex);
 
       const latest = rounds.at(-1);
       if (!latest) {
         store.setLastScanned(key, to);
-        return;
-      }
-      if (store.hasCandidateFor([latest.transactionHash])) {
-        store.setLastScanned(key, Number(latest.blockNumber));
         return;
       }
 
@@ -72,7 +78,8 @@ export function startFeedScanner(opts: {
       store.upsertCandidate(candidate);
       bus.publish({ type: 'candidate.found', candidate });
       queue.enqueue(candidate);
-      store.setLastScanned(key, Number(latest.blockNumber));
+      // No local progress is recorded: the on-chain cursor advances when the round is proven, and
+      // that is what the next tick filters against.
     } catch (error) {
       console.warn('[feed] scan failed:', error instanceof Error ? error.message : error);
     }

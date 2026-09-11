@@ -40,6 +40,10 @@ export function IncidentCard({ incident, subjectLabel }: { incident: Incident; s
 
   const freshness = freshnessLabel(incident.continuityLength);
 
+  // A real mainnet victim is a stranger who never bought cover, so a genuine prosecution routinely
+  // lands here: damages proven, payout zero. Left unexplained that reads as a broken number.
+  const uninsured = incident.status === 'settled' && incident.damagesUsd > 0n && incident.paid === 0n;
+
   return (
     <article className={`card tone-${status.tone}`}>
       <header className="card-head">
@@ -65,6 +69,14 @@ export function IncidentCard({ incident, subjectLabel }: { incident: Incident; s
         <Field label="beneficiary" value={shortHash(incident.beneficiary)} mono />
         <Field label="prosecutor" value={shortHash(incident.prosecutor)} mono />
       </div>
+
+      {uninsured && (
+        <p className="dim small">
+          Proven, priced, and unpaid: the beneficiary holds no cover on this subject. The verdict
+          stands on its own &mdash; the prosecutor still collected the bounty for proving it &mdash;
+          but restitution only reaches someone who bought cover. Insurance pays the insured.
+        </p>
+      )}
 
       <div className="card-evidence">
         {incident.evidence.slice(0, 4).map((coord, i) =>
