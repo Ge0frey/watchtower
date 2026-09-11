@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { AmbientHeader } from '@/components/AmbientHeader';
+import { WorkerBanner } from '@/components/WorkerBanner';
 import { Providers } from './providers';
 import './globals.css';
 
@@ -15,7 +16,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <Providers>
           <AmbientHeader />
-          <main className="shell">{children}</main>
+          <main className="shell">
+            <WorkerBanner />
+            {children}
+          </main>
         </Providers>
       </body>
     </html>

@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "thesis": "tsx src/scripts/thesis.ts",
     "capture": "tsx src/scripts/capture-fixtures.ts",
-    "verify:precompile": "tsx src/scripts/verify-precompile.ts"
+    "verify:precompile": "tsx src/scripts/verify-precompile.ts",
+    "demo:skip-gap": "tsx src/scripts/demo-skip-gap.ts"
   },
   "dependencies": {
     "@gluwa/usc-sdk": "0.18.0",

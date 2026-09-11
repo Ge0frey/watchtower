@@ -7,6 +7,7 @@ import { ConnectGate, TxState } from '@/components/actions/TxButton';
 import { CORE, useChainState } from '@/hooks/useChainState';
 import { useIncidentFeed } from '@/hooks/useIncidentFeed';
 import { useWatchtowerWrite } from '@/hooks/useWatchtowerWrite';
+import { useWorkerStatus } from '@/hooks/useWorkerStatus';
 import { api } from '@/lib/api';
 
 type Mode = 'relayed' | 'self';
@@ -30,6 +31,7 @@ export default function ProsecutePage() {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const write = useWatchtowerWrite();
+  const { offline } = useWorkerStatus();
 
   const hashes = value.split(/[\s,]+/).map((h) => h.trim()).filter((h) => /^0x[0-9a-fA-F]{64}$/.test(h));
   const insurable = subjects.filter((s) => s.kind !== 2);
@@ -116,9 +118,16 @@ export default function ProsecutePage() {
 
         {mode === 'self' && <ConnectGate {...write} />}
 
+        {offline && (
+          <div className="notice small">
+            The worker is offline. Both modes need it &mdash; it is what talks to the Attestcoin
+            Proof Builder. Your wallet signs the result, but it cannot build a proof on its own.
+          </div>
+        )}
+
         <button
           className="btn"
-          disabled={busy || hashes.length === 0 || !selected || (mode === 'self' && !write.canWrite)}
+          disabled={busy || offline || hashes.length === 0 || !selected || (mode === 'self' && !write.canWrite)}
           onClick={run}
         >
           {busy ? 'working…' : mode === 'self' ? 'Build & sign' : 'Prosecute'}

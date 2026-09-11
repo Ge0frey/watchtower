@@ -1,7 +1,7 @@
 import type { proofProvider } from '@gluwa/usc-sdk';
 import type { ChainKey } from '@watchtower/shared';
 import { attestcoin } from '@watchtower/shared';
-import type { AttestcoinClient } from './client.js';
+import { attestedHead, type AttestcoinClient } from './client.js';
 
 export class ProofError extends Error {
   constructor(message: string, readonly retryable = true) {
@@ -30,7 +30,12 @@ export interface EvidenceBundle {
 }
 
 export interface ProgressSink {
-  waiting?(blockHeight: number): void;
+  /**
+   * @param blockHeight The source-chain block the window needs attested.
+   * @param attestedHeight Where the attestor network had actually reached when the wait began, so a
+   *        dashboard can show the distance still to cover rather than a bare spinner.
+   */
+  waiting?(blockHeight: number, attestedHeight: number): void;
   building?(): void;
   ready?(bundle: EvidenceBundle): void;
 }
@@ -69,7 +74,15 @@ export async function buildEvidenceBundle(
   const builder = client.proofBuilder(chainKey);
   const target = Math.max(...heights);
 
-  progress.waiting?.(target);
+  // Report where attestation has actually reached before blocking on it. The wait runs to minutes;
+  // "waiting for block N, attested through N-40" is a system working, while a spinner is a hang.
+  let attestedNow = 0;
+  try {
+    attestedNow = await attestedHead(client, chainKey);
+  } catch {
+    attestedNow = 0; // the chain-info precompile is unreachable; the wait below will say so properly
+  }
+  progress.waiting?.(target, attestedNow);
   await builder.waitUntilHeightAttested(chainKey, target, 15_000, 1_200_000);
 
   progress.building?.();

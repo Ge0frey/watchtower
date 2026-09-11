@@ -65,20 +65,32 @@ contract FailedTxAndFeedTest is Base {
         assertEq(user.balance - before, 3.4 ether, "0.001 ETH at $3,400");
     }
 
-    /// @notice Blob and authorization-list transactions are out of scope for v1, loudly.
-    function test_revertsOnUnsupportedTxType() public {
-        bytes[] memory chunks = new bytes[](4);
-        chunks[0] = abi.encode(uint64(1), uint64(21000), user, false, address(0xBEEF), uint256(0), bytes(""));
-        chunks[1] = bytes("");
-        chunks[2] = bytes("");
-        chunks[3] = abi.encode(uint8(0), uint64(21000), new bytes[](0), bytes(""));
-        bytes memory blobTx = abi.encode(uint8(3), chunks);
-
+    /// @notice EIP-2930 access-list transactions still carry a flat `gasPrice`, and people still
+    ///         send them. The decoder ships no helper for type 1, so the rule reads the chunk against
+    ///         the library's own layout rather than refusing an ordinary transaction.
+    function test_handlesEip2930Transactions() public {
+        // 80,000 gas at 25 gwei = 0.002 ETH; at $3,400 that is $6.80.
+        bytes memory reverted = TxFixture.eip2930(user, address(0xBEEF), 0, 80_000, 25 gwei, TxFixture.logs0());
         EvidenceInput memory input =
-            singleEvidence(accountSubject, failedTx.ruleId(), SEPOLIA, 503, 1, blobTx, 10);
+            singleEvidence(accountSubject, failedTx.ruleId(), SEPOLIA, 504, 2, reverted, 10);
+
+        uint256 before = user.balance;
+        vm.prank(prosecutor);
+        core.submitEvidence(input);
+
+        assertEq(user.balance - before, 6.8 ether, "0.002 ETH at $3,400");
+    }
+
+    /// @notice Blob and authorization-list transactions are out of scope for v1, loudly.
+    /// @dev The refusal is the point. Types 3 and 4 carry a fourth chunk whose split the decoder does
+    ///      not expose, so a guess would reimburse from the wrong field - better to name the type.
+    function test_revertsOnUnsupportedTxType() public {
+        bytes memory blob = TxFixture.blobTx(user, address(0xBEEF), 0, 100_000, TxFixture.logs0());
+        EvidenceInput memory input =
+            singleEvidence(accountSubject, failedTx.ruleId(), SEPOLIA, 503, 1, blob, 10);
 
         vm.prank(prosecutor);
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(FailedTx.UnsupportedTxType.selector, uint8(3)));
         core.submitEvidence(input);
     }
 

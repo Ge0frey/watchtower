@@ -9,7 +9,18 @@ import {
   watchtowerCoreAbi,
 } from '@watchtower/shared';
 
-export const client = createPublicClient({ chain: creditcoinTestnet, transport: http() });
+/**
+ * JSON-RPC batching, not Multicall3.
+ *
+ * CC3 Testnet has no Multicall3 deployed - `0xcA11bde0…` holds no code - so viem's `multicall` action
+ * throws rather than degrading, and a dashboard built on it renders nothing at all. The node does
+ * accept JSON-RPC batch arrays, which buys the property that actually matters here: every read for a
+ * whole dashboard snapshot leaves in one HTTP request. Calls issued in the same tick are grouped.
+ */
+export const client = createPublicClient({
+  chain: creditcoinTestnet,
+  transport: http(undefined, { batch: { wait: 16 } }),
+});
 
 export const CORE = (process.env.NEXT_PUBLIC_WATCHTOWER_CORE ?? '0x') as Address;
 export const REGISTRY = (process.env.NEXT_PUBLIC_SUBJECT_REGISTRY ?? '0x') as Address;
@@ -43,9 +54,10 @@ export interface ChainSubject {
 /**
  * The authoritative view. Read directly from Creditcoin, never from our own backend.
  *
- * Two round trips for every route: `allSubjects` returns the catalogue, then one multicall fetches
- * each subject's accumulator, tranche, bounty pool and frozen flag. Shared through TanStack Query's
- * cache, so navigating between pages reuses one poll rather than starting another.
+ * Two round trips for every route: `allSubjects` returns the catalogue, then every per-subject read -
+ * accumulator, tranche, bounty pool, frozen flag - is issued in the same tick and batched into one
+ * HTTP request. Shared through TanStack Query's cache, so navigating between pages reuses one poll
+ * rather than starting another.
  */
 export function useChainState() {
   return useQuery({
@@ -60,15 +72,14 @@ export function useChainState() {
         functionName: 'allSubjects',
       });
 
-      const reads = await client.multicall({
-        allowFailure: false,
-        contracts: ids.flatMap((id) => [
-          { address: CORE, abi: watchtowerCoreAbi, functionName: 'stateOf', args: [id] } as const,
-          { address: VAULT, abi: underwritingVaultAbi, functionName: 'trancheOf', args: [id] } as const,
-          { address: VAULT, abi: underwritingVaultAbi, functionName: 'bountyPool', args: [id] } as const,
-          { address: VAULT, abi: underwritingVaultAbi, functionName: 'frozen', args: [id] } as const,
+      const reads = await Promise.all(
+        ids.flatMap((id) => [
+          client.readContract({ address: CORE, abi: watchtowerCoreAbi, functionName: 'stateOf', args: [id] }),
+          client.readContract({ address: VAULT, abi: underwritingVaultAbi, functionName: 'trancheOf', args: [id] }),
+          client.readContract({ address: VAULT, abi: underwritingVaultAbi, functionName: 'bountyPool', args: [id] }),
+          client.readContract({ address: VAULT, abi: underwritingVaultAbi, functionName: 'frozen', args: [id] }),
         ]),
-      });
+      );
 
       return ids.map((id, i) => {
         const s = subjects[i]!;

@@ -17,7 +17,11 @@
     "verify": "pnpm build:contracts && pnpm test:contracts && pnpm typecheck",
     "balances": "node scripts/balances.mjs",
     "deploy:creditcoin": "node scripts/deploy-creditcoin.mjs",
-    "seed": "node scripts/seed-demo.mjs"
+    "seed": "node scripts/seed-demo.mjs",
+    "capture": "pnpm --filter @watchtower/attestcoin capture",
+    "demo:skip-gap": "pnpm --filter @watchtower/attestcoin demo:skip-gap",
+    "watch": "node scripts/watch-address.mjs",
+    "find:sandwich": "node scripts/find-sandwich.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

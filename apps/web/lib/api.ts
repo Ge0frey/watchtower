@@ -53,9 +53,17 @@ export const api = {
     return res.json();
   },
 
-  /** Live narration: the attestation wait runs to minutes, and silence would read as a hang. */
-  stream(onEvent: (event: StreamEvent) => void): () => void {
+  /**
+   * Live narration: the attestation wait runs to minutes, and silence would read as a hang.
+   *
+   * `onStatus` reports the connection itself. EventSource reconnects on its own, so a worker that
+   * dies mid-session comes back without a reload - but the UI has to stop claiming it is live in the
+   * meantime.
+   */
+  stream(onEvent: (event: StreamEvent) => void, onStatus?: (connected: boolean) => void): () => void {
     const source = new EventSource(`${BASE}/api/stream`);
+    source.onopen = () => onStatus?.(true);
+    source.onerror = () => onStatus?.(false);
     source.onmessage = (message) => {
       try {
         onEvent(JSON.parse(message.data) as StreamEvent);

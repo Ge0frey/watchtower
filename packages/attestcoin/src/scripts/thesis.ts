@@ -60,7 +60,11 @@ async function main() {
   // --- build the bundle ------------------------------------------------------
   console.log('\nbuilding evidence bundle...');
   const bundle = await buildEvidenceBundle(client, chainKey, hashes, {
-    waiting: (h) => console.log(`  waiting for attestation of block ${h.toLocaleString()} (~8 min in practice)`),
+    waiting: (h, attested) =>
+      console.log(
+        `  waiting for attestation of block ${h.toLocaleString()} ` +
+          `(attested through ${attested.toLocaleString()}; ~8 min in practice)`,
+      ),
     building: () => console.log('  building Merkle + continuity proofs'),
   });
   ok('proof bundle built', bundle.rows.length === hashes.length, `${bundle.rows.length} rows, cached=${bundle.cached}`);

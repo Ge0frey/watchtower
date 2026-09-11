@@ -39,11 +39,12 @@ Four rules, one engine. Adding a fifth risk means writing one pure function.
 ## Repository
 
 ```
-contracts/          Foundry. The ASC, the rule library, the vault. 65 tests.
+contracts/          Foundry. The ASC, the rule library, the vault. 79 tests, fuzzed invariants.
 packages/shared/    Chain config, rule ids, types, generated ABIs.
 packages/attestcoin/ Every conversation with the protocol: SDK client, proofs, pre-flight, gas.
 apps/prosecutor/    The worker: three scanners, one submission path, indexer, REST + SSE.
 apps/web/           The dashboard. One screen.
+fixtures/           Proof bundles captured from the live testnet, replayed by the test suite.
 docs/               Integration doc, architecture, demo runbook.
 ```
 
@@ -57,22 +58,53 @@ pnpm install
 cp .env.example .env          # see docs/ENV_SETUP.md
 
 # contracts  (see docs/DEPLOY.md for the order and what to paste where)
-cd contracts && forge test                       # 66 tests, no network needed
-forge script script/DeploySepolia.s.sol    --rpc-url sepolia    --broadcast
-forge script script/DeployCreditcoin.s.sol --rpc-url creditcoin --broadcast
-forge script script/SeedDemo.s.sol         --rpc-url creditcoin --broadcast
+cd contracts && forge test                       # 79 tests, no network needed
+forge script script/DeploySepolia.s.sol --rpc-url sepolia --broadcast
+cd .. && pnpm deploy:creditcoin                  # NOT forge script - see docs/DEPLOY.md §2
+pnpm seed
 
 # verify the integration against the live chain, not against the docs
-pnpm --filter @watchtower/attestcoin verify:precompile
+pnpm verify:precompile
 pnpm thesis 0xFRONTRUN 0xVICTIM 0xBACKRUN         # a real mainnet sandwich
+pnpm capture 0xFRONTRUN 0xVICTIM 0xBACKRUN        # freeze it into fixtures/ for the test suite
 
 # run it
 pnpm worker                                       # prosecutor + API on :8080
 pnpm web                                          # dashboard on :3000
+
+# ops
+pnpm find:sandwich --span 150                     # a real sandwich happening right now
+pnpm watch 0xPOOL --label "UniV2 DAI/WETH"        # register + fund a watch on any contract
+pnpm demo:skip-gap                                # stage a stream step with a hole in it
+pnpm balances                                     # every key, on the chain it spends on
 ```
 
 The dashboard renders fully with **no wallet connected**. Only buying cover, staking and funding a
 watch need one.
+
+## It is live
+
+Deployed on Creditcoin CC3 Testnet (chain id 102031), reading Ethereum Mainnet and Sepolia.
+
+| | |
+|---|---|
+| `WatchtowerCore` | [`0x8864…8DF2`](https://creditcoin-testnet.blockscout.com/address/0x886498645c18a787f6283c25012771d77b068DF2) |
+| `SubjectRegistry` | [`0x063f…8178`](https://creditcoin-testnet.blockscout.com/address/0x063f5167Fe6F65c5B8c9F81862fE92678f248178) |
+| `UnderwritingVault` | [`0x5c9F…5A14`](https://creditcoin-testnet.blockscout.com/address/0x5c9F0cF5D0057556B1A12D8f4028253c1f1C5A14) |
+| `DemoBridge` (Sepolia) | [`0x4044…A5eF`](https://sepolia.etherscan.io/address/0x4044D34f8DF534B364B5EA337b72DD508198A5eF) |
+
+**A real Ethereum mainnet sandwich, prosecuted on Creditcoin:**
+[`0x9cad…9308`](https://creditcoin-testnet.blockscout.com/tx/0x9cad4c89ea95410e08896de3ae35d96a978348a9cc1a082824377f5505d29308)
+
+Block 25,955,190 of Ethereum Mainnet, transaction indices 29, 30, 31 on the UniV2 DAI/WETH pool. A
+searcher bracketed a stranger's swap and took 0.001467 WETH out of their execution price. Watchtower
+proved all three positions through the Block Prover Precompile in one batch call, priced the damage at
+**$3.77** using the ETH/USD answer Chainlink itself published — proven, not reported — and paid the
+prosecutor 0.05 CTC for the proof. The whole prosecution cost 1,233,005 gas: **1.64 % of one
+Creditcoin block**.
+
+Restitution was zero, and that is the system working: the victim is a real stranger who never bought
+cover. The verdict stands on its own; insurance pays the insured.
 
 ## Verification you can reproduce
 
@@ -82,7 +114,7 @@ Two checks confirm the integration against the live chain rather than against do
 Creditcoin's precompile is native runtime code that a forked node does not have:
 
 ```
-$ pnpm --filter @watchtower/attestcoin verify:precompile
+$ pnpm verify:precompile
 
 Block Prover Precompile 0x0FD2 on chainId 102031
   expected   46   precompile   46   MATCH
@@ -103,6 +135,29 @@ WATCHTOWER prosecutor
 
 Mainnet being readable from a testnet deployment is what lets Watchtower prosecute **real, historical
 Ethereum sandwiches** in a demo.
+
+**The thesis itself, as a committed test.** `pnpm capture <txHash>…` freezes a real proof bundle into
+`fixtures/`; `FixtureReplay.t.sol` then replays it offline and asserts that the transaction index
+derived from the *real* Merkle sibling path equals the index the Proof Builder reported, and that
+`EvmV1Decoder` decodes the *real* receipt bytes:
+
+```
+$ forge test --match-path test/unit/FixtureReplay.t.sol -vv
+
+  replaying fixtures/mainnet-sandwich.json
+    block 25955190 index 29    from 0xB70103800e9f2A71caf7796CbF69d238F4823a02   logs 4
+    block 25955190 index 30    from 0x4f545A779D1C1874313C893Ca3e0Fc64CeCDA196   logs 35
+    block 25955190 index 31    from 0xB70103800e9f2A71caf7796CbF69d238F4823a02   logs 4
+```
+
+One block. Consecutive positions. The same sender on both outer positions and a stranger in the
+middle. Every coordinate there was derived by the precompile from a real Merkle sibling path, and
+every address by decoding real transaction bytes — the test asserts that shape, so the thesis is a
+passing assertion rather than a claim in a README.
+
+Every other suite uses synthesised transactions, which proves the logic and not the decoding. This
+one proves the decoding. It skips, loudly, when no fixture has been captured — a fresh clone with no
+API keys still runs the full offline suite green.
 
 ## Architecture in one paragraph
 
@@ -131,7 +186,9 @@ See [`docs/USER_FLOW.md`](docs/USER_FLOW.md) for what a person actually does wit
   round-trip gain on the same pool in the same block — a lower bound, since it ignores the fee they
   paid. The *verdict* is proven; the *pricing* is policy.
 - **EIP-1559 gas reimbursement uses `maxFeePerGas`**, an upper bound, because the encoding does not
-  carry the effective price. Capped by the policy either way.
+  carry the effective price. Capped by the policy either way. `FailedTx` reads transaction types 0, 1
+  and 2; blob (3) and delegation (4) transactions are refused by name rather than decoded from a
+  chunk layout the protocol's decoder does not expose.
 - **Ethereum only, today.** Every source chain the protocol adds becomes a new subject namespace for
   free.
 - **Writability is in audit.** Architected for, not demoed on.

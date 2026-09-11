@@ -30,6 +30,31 @@ const empty: Snapshot = {
   lastScanned: {},
 };
 
+/**
+ * `JSON.stringify` throws outright on a BigInt - "Do not know how to serialize a BigInt" - and
+ * incidents carry two of them (`damagesUsd` and `paid`, both read straight off a chain event). An
+ * unhandled throw inside the flush kills the whole worker process, moments after a verdict has
+ * already settled on-chain: the money moves, the prosecutor dies, and the dashboard's feed stops.
+ *
+ * So bigints are tagged on the way out and rebuilt on the way in. Tagging rather than stringifying
+ * keeps the types honest across a restart - a resumed incident still holds bigints, not strings that
+ * would silently fail every arithmetic comparison downstream.
+ */
+interface TaggedBigInt {
+  $bigint: string;
+}
+
+const isTagged = (value: unknown): value is TaggedBigInt =>
+  typeof value === 'object' && value !== null && typeof (value as TaggedBigInt).$bigint === 'string';
+
+function replacer(_key: string, value: unknown): unknown {
+  return typeof value === 'bigint' ? ({ $bigint: value.toString() } satisfies TaggedBigInt) : value;
+}
+
+function reviver(_key: string, value: unknown): unknown {
+  return isTagged(value) ? BigInt(value.$bigint) : value;
+}
+
 export class Store {
   private snapshot: Snapshot;
   private readonly path: string;
@@ -38,9 +63,25 @@ export class Store {
   constructor(dir = config.dataDir) {
     mkdirSync(dir, { recursive: true });
     this.path = resolve(dir, 'watchtower.json');
-    this.snapshot = existsSync(this.path)
-      ? { ...empty, ...(JSON.parse(readFileSync(this.path, 'utf8')) as Snapshot) }
-      : { ...empty };
+    this.snapshot = existsSync(this.path) ? this.load() : { ...empty };
+  }
+
+  /**
+   * A corrupt or half-written store must not stop the worker from starting.
+   *
+   * Everything in here is a cache: cursors are re-read from the chain, in-flight candidates are
+   * re-detected by the scanners, and incidents are re-indexed from Creditcoin's own events. Starting
+   * empty costs a little history; refusing to start costs the demo.
+   */
+  private load(): Snapshot {
+    try {
+      return { ...empty, ...(JSON.parse(readFileSync(this.path, 'utf8'), reviver) as Snapshot) };
+    } catch (error) {
+      console.warn(
+        `[store] ${this.path} is unreadable (${error instanceof Error ? error.message : error}); starting empty`,
+      );
+      return { ...empty };
+    }
   }
 
   // ------------------------------------------------------------------ cursors
@@ -146,9 +187,16 @@ export class Store {
     this.writeQueued = true;
     setImmediate(() => {
       this.writeQueued = false;
-      const tmp = `${this.path}.tmp`;
-      writeFileSync(tmp, JSON.stringify(this.snapshot, null, 2));
-      renameSync(tmp, this.path); // atomic replace: a crash mid-write cannot corrupt the store
+      try {
+        const tmp = `${this.path}.tmp`;
+        writeFileSync(tmp, JSON.stringify(this.snapshot, replacer, 2), 'utf8');
+        renameSync(tmp, this.path); // atomic replace: a crash mid-write cannot corrupt the store
+      } catch (error) {
+        // A flush runs on `setImmediate`, outside any caller's try/catch, so anything thrown here is
+        // an unhandled exception that takes the process down - after the verdict it was recording
+        // has already settled on-chain. Bookkeeping never gets to kill the prosecutor.
+        console.error('[store] flush failed:', error instanceof Error ? error.message : error);
+      }
     });
   }
 }

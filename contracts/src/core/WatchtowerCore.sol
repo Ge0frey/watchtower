@@ -66,6 +66,12 @@ contract WatchtowerCore is IWatchtowerCore, IAttestedFeed, Ownable {
     mapping(bytes32 => Incident) public incidents;
     mapping(bytes32 => bool) private _anchored;
 
+    /// @notice Unresolved optimistic breaches per subject.
+    /// @dev A stream can break twice before anyone settles the first claim. Counting rather than
+    ///      flag-flipping means the second breach keeps the tranche frozen after the first is paid -
+    ///      otherwise settling one claim would open an exit for underwriters mid-dispute.
+    mapping(bytes32 => uint256) public openBreaches;
+
     event EvidenceAccepted(
         bytes32 indexed subjectId,
         bytes32 indexed ruleId,
@@ -252,6 +258,7 @@ contract WatchtowerCore is IWatchtowerCore, IAttestedFeed, Ownable {
         inc.snapshot = snapshot;
         inc.status = 1;
 
+        openBreaches[input.subjectId] += 1;
         VAULT.postBond{value: bond}(incidentId, msg.sender);
         VAULT.setFrozen(input.subjectId, true);
 
@@ -270,7 +277,7 @@ contract WatchtowerCore is IWatchtowerCore, IAttestedFeed, Ownable {
             incidentId, inc.subjectId, inc.beneficiary, inc.damagesUsd, inc.prosecutor, inc.continuityLength
         );
         VAULT.releaseBond(incidentId);
-        VAULT.setFrozen(inc.subjectId, false);
+        _closeBreach(inc.subjectId);
 
         emit BreachSettled(incidentId, paid);
         emit VerdictIssued(incidentId, inc.subjectId, inc.ruleId, inc.beneficiary, inc.damagesUsd, paid, bytes32(0));
@@ -306,7 +313,7 @@ contract WatchtowerCore is IWatchtowerCore, IAttestedFeed, Ownable {
         inc.status = 3;
 
         VAULT.slashBond(incidentId, msg.sender);
-        VAULT.setFrozen(inc.subjectId, false);
+        _closeBreach(inc.subjectId);
 
         emit GapChallengeUpheld(incidentId, msg.sender, gap.blockHeight, gap.txIndex);
         emit CursorAdvanced(inc.subjectId, inc.snapshot.cursorHeight, inc.snapshot.cursorIndex);
@@ -464,6 +471,16 @@ contract WatchtowerCore is IWatchtowerCore, IAttestedFeed, Ownable {
         return afterLow && beforeHigh;
     }
 
+    /// @dev Thaw the tranche only once nothing is left in dispute.
+    function _closeBreach(bytes32 subjectId) private {
+        uint256 remaining = openBreaches[subjectId];
+        if (remaining > 0) {
+            remaining -= 1;
+            openBreaches[subjectId] = remaining;
+        }
+        if (remaining == 0) VAULT.setFrozen(subjectId, false);
+    }
+
     function _requiredBond() private view returns (uint256) {
         (bool ok, bytes memory data) = address(VAULT).staticcall(abi.encodeWithSignature("requiredBond()"));
         if (!ok || data.length < 32) return 0;
@@ -479,8 +496,12 @@ contract WatchtowerCore is IWatchtowerCore, IAttestedFeed, Ownable {
     // ------------------------------------------------------------- read side
 
     /// @inheritdoc IAttestedFeed
+    /// @dev Before a subject's first ingestion the honest answer is its anchor, not zero: the anchor
+    ///      is the coordinate the stream is declared to start from, and it is exactly the cursor the
+    ///      core will enforce against the first submission. Reporting zero would tell a consumer that
+    ///      nothing has been verified below block zero, which is true but useless.
     function latestProvenHead(bytes32 subjectId) external view override returns (uint64 height, uint32 index) {
-        SubjectView memory v = _state[subjectId];
+        SubjectView memory v = _publicView(subjectId);
         return (v.cursorHeight, v.cursorIndex);
     }
 
@@ -496,8 +517,20 @@ contract WatchtowerCore is IWatchtowerCore, IAttestedFeed, Ownable {
     }
 
     /// @notice Whole accumulator for a subject - one call, everything the dashboard needs.
+    /// @dev Reports the same cursor a rule would be handed, anchor included, so the dashboard and the
+    ///      judgement never disagree about where the proven head sits.
     function stateOf(bytes32 subjectId) external view returns (SubjectView memory) {
-        return _state[subjectId];
+        return _publicView(subjectId);
+    }
+
+    /// @dev `_viewOf` needs a loaded Subject; this is the read-side equivalent for callers who only
+    ///      have an id, and tolerates ids that were never registered.
+    function _publicView(bytes32 subjectId) private view returns (SubjectView memory v) {
+        v = _state[subjectId];
+        if (_anchored[subjectId] || !REGISTRY.exists(subjectId)) return v;
+        Subject memory subject = REGISTRY.getSubject(subjectId);
+        v.cursorHeight = subject.anchorHeight;
+        v.cursorIndex = subject.anchorIndex;
     }
 
     function incidentOf(bytes32 incidentId) external view returns (Incident memory) {

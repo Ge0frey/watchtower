@@ -14,7 +14,7 @@ subjects that do not exist yet.
 
 ```bash
 cd contracts
-forge test          # 66 tests, no network
+forge test          # 79 tests, no network
 pnpm balances       # from the repo root - all three keys funded
 ```
 
@@ -59,8 +59,17 @@ the price scanner does not have to sweep thousands of blocks on its first tick:
 ```bash
 echo $(( $(cast block-number --rpc-url mainnet) - 500 ))     # -> FEED_ANCHOR_HEIGHT
 
-forge script script/DeployCreditcoin.s.sol --rpc-url creditcoin --broadcast
+pnpm deploy:creditcoin        # from the repo root
 ```
+
+> **Not `forge script`, on this chain.** Creditcoin's RPC omits `mixHash` from block headers, so
+> alloy cannot deserialise a block and `forge script` — which forks the chain to execute `run()` and
+> to follow receipts — fails. The dangerous part is *how* it fails: it broadcasts transactions it can
+> then no longer track, leaving a half-deployed system. `contracts/script/DeployCreditcoin.s.sol` is
+> kept as the readable specification of the deployment; `scripts/deploy-creditcoin.mjs` is what
+> actually runs it, over plain `eth_sendRawTransaction` and `eth_getTransactionReceipt`, which the
+> chain serves correctly. It is also idempotent: any address already in `.env` is reused rather than
+> redeployed, so a partial run resumes, and it writes every result back to `.env` for you.
 
 Signs with `DEPLOYER_PK`. Deploys the registry, the vault and the core, then the four rules, then
 registers the four subjects and links each priced subject to the feed subject.
@@ -88,12 +97,16 @@ NEXT_PUBLIC_UNDERWRITING_VAULT=$UNDERWRITING_VAULT
 ## 3 — Seed
 
 ```bash
-forge script script/SeedDemo.s.sol --rpc-url creditcoin --broadcast
+pnpm seed                     # from the repo root
 ```
 
 Stakes 7 CTC across the three tranches, funds 1.25 CTC of bounty pools, and buys cover so a verdict
 has somewhere to pay. Scale it with `SEED_SCALE_BPS` (10000 = full); the script checks the deployer's
 balance before broadcasting rather than failing partway through nine transactions.
+
+Same reasoning as step 2 — `SeedDemo.s.sol` is the specification, `scripts/seed-demo.mjs` is the
+runnable version. It reads what is already staked, funded and covered and tops up only the difference,
+so re-running after a partial failure is safe.
 
 ## Verify
 
@@ -111,10 +124,25 @@ pnpm web
 
 ## Re-running
 
-The scripts are **not** idempotent. `registerSubject` reverts with `SubjectExists` on a repeat, since
-a subject id is `keccak256(chainKey, sourceContract, ruleId)` and those inputs have not changed. To
-redeploy cleanly, run `DeployCreditcoin` again — it deploys fresh contracts with a fresh registry —
-and replace every address in `.env`. A partial re-run against an existing registry will not work.
+`pnpm deploy:creditcoin` and `pnpm seed` are both idempotent, and that is the whole reason they
+exist as node scripts. The deployer reuses any address already in `.env`; the seeder tops up to the
+target rather than adding to it.
+
+To redeploy **cleanly** — which you must after changing any contract, since the addresses in `.env`
+point at the old bytecode — blank the deployment block in `.env` first:
+
+```bash
+SUBJECT_REGISTRY=      UNDERWRITING_VAULT=      WATCHTOWER_CORE=
+RULE_INTRABLOCK=       RULE_RESERVE=            RULE_FEED=        RULE_FAILEDTX=
+SUBJECT_POOL=          SUBJECT_BRIDGE=          SUBJECT_FEED=     SUBJECT_ACCOUNT=
+```
+
+Then `pnpm deploy:creditcoin && pnpm seed`. A fresh registry means fresh subject ids, so the
+accumulators start empty again — re-ingest a price and a few `Locked` events before demoing.
+
+Partially re-running against an *existing* registry does not work: `registerSubject` reverts with
+`SubjectExists`, since a subject id is `keccak256(chainKey, sourceContract, ruleId)` and none of those
+inputs changed.
 
 `DeploySepolia` is safe to repeat: it deploys a new bridge each time. Update
 `DEMO_BRIDGE_SEPOLIA` and `BRIDGE_ANCHOR_HEIGHT`, and redeploy Creditcoin too, because the bridge

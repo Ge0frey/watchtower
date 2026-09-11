@@ -15,6 +15,32 @@ const attestcoin = createClient();
 const json = (value: unknown) =>
   JSON.parse(JSON.stringify(value, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)));
 
+/**
+ * How far behind the attested head each stream subject's proven cursor sits, in source-chain blocks.
+ *
+ * This is the number that says whether the system is keeping up. The demo checklist gates on it, and
+ * it is the difference between "nothing has happened lately" and "the prosecutor stopped working an
+ * hour ago" - two states that look identical on a dashboard showing only the latest verdict.
+ *
+ * Intra-block subjects have no cursor (they read a neighbourhood, not a stream) and are skipped.
+ */
+async function cursorLag(heads: Record<number, number>): Promise<Record<string, number>> {
+  try {
+    const subjects = await readSubjects();
+    const lag: Record<string, number> = {};
+    for (const s of subjects) {
+      const cursor = Number(s.state.cursorHeight);
+      if (cursor === 0) continue;
+      const head = heads[Number(s.subject.chainKey)] ?? 0;
+      if (head === 0) continue;
+      lag[s.subject.label] = Math.max(0, head - cursor);
+    }
+    return lag;
+  } catch {
+    return {};
+  }
+}
+
 export async function startApi() {
   const app = Fastify({ logger: false });
   await app.register(cors, { origin: true });
@@ -60,10 +86,25 @@ export async function startApi() {
 
   app.get('/api/rules', async () => json(Object.values(RULES)));
 
+  /**
+   * The pre-flight check, as an endpoint.
+   *
+   * Everything here degrades rather than throws. A worker with no hot key is a perfectly valid
+   * read-only deployment, and a health endpoint that 500s because one field is unavailable tells the
+   * dashboard the worker is dead when it is merely unfunded - which is the opposite of the truth it
+   * exists to report.
+   */
   app.get('/api/health', async () => {
-    const wallet = prosecutorWallet();
-    const address = (await wallet.getAddress()) as Address;
-    const balance = await publicClient.getBalance({ address });
+    let address = '0x0000000000000000000000000000000000000000' as Address;
+    let balance = 0n;
+    let keyed = false;
+    try {
+      address = (await prosecutorWallet().getAddress()) as Address;
+      balance = await publicClient.getBalance({ address });
+      keyed = true;
+    } catch {
+      keyed = false; // no PROSECUTOR_PK, or the RPC is down - both reported, neither fatal
+    }
 
     const heads: Record<number, number> = {};
     const rpcStatus: Record<string, 'ok' | 'down'> = {};
@@ -89,13 +130,22 @@ export async function startApi() {
       prosecutorAddress: address,
       prosecutorBalanceCtc: formatEther(balance),
       attestedHeads: heads,
-      cursorLag: {},
+      cursorLag: await cursorLag(heads),
       rpcStatus,
       sseClients: bus.subscriberCount,
       chainId,
-      ok: balance > 0n && chainId === 102031 && Object.values(rpcStatus).every((s) => s === 'ok'),
+      ok:
+        keyed &&
+        balance > 0n &&
+        chainId === 102031 &&
+        Object.values(rpcStatus).every((s) => s === 'ok'),
     };
-    return json({ ...report, queueDepth: queue.depth, submitEnabled: config.submitEnabled });
+    return json({
+      ...report,
+      queueDepth: queue.depth,
+      submitEnabled: config.submitEnabled,
+      prosecutorKeyed: keyed,
+    });
   });
 
   /**

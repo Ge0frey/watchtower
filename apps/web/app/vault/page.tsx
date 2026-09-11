@@ -6,6 +6,7 @@ import { useAccount, useReadContracts } from 'wagmi';
 import { formatCtc, formatUsd, shortHash, underwritingVaultAbi } from '@watchtower/shared';
 import { api } from '@/lib/api';
 import { VAULT, useChainState } from '@/hooks/useChainState';
+import { useWorkerStatus } from '@/hooks/useWorkerStatus';
 
 /**
  * The capital side: who is backing what, what they have earned, and what has been paid out.
@@ -14,7 +15,8 @@ import { VAULT, useChainState } from '@/hooks/useChainState';
 export default function VaultPage() {
   const { data: subjects = [] } = useChainState();
   const { address, isConnected } = useAccount();
-  const leaderboard = useQuery({ queryKey: ['leaderboard'], queryFn: api.leaderboard, refetchInterval: 10_000 });
+  const leaderboard = useQuery({ queryKey: ['leaderboard'], queryFn: api.leaderboard, refetchInterval: 10_000, retry: false });
+  const { offline } = useWorkerStatus();
 
   const positions = useReadContracts({
     allowFailure: false,
@@ -112,7 +114,11 @@ export default function VaultPage() {
               <span>{formatCtc(BigInt(row.bountiesWei), 4)}</span>
             </div>
           ))}
-          {(leaderboard.data ?? []).length === 0 && <p className="dim small">No bounties claimed yet.</p>}
+          {(leaderboard.data ?? []).length === 0 && (
+            <p className="dim small">
+              {offline ? 'Unavailable \u2014 the worker keeps this record.' : 'No bounties claimed yet.'}
+            </p>
+          )}
         </div>
       </section>
     </>

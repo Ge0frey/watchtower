@@ -115,6 +115,76 @@ contract UnderwritingVaultTest is Base {
         assertEq(vault.usdPerCtcE8(), 2e8);
     }
 
+    // ------------------------------------------------------------- premiums
+
+    /// @notice Underwriting is only a business if the income arrives. Premiums accrue per unit of
+    ///         stake at the moment cover is bought, and are claimable without touching the stake.
+    function test_premiumsAccrueToUnderwritersProRata() public {
+        address second = makeAddr("secondUnderwriter");
+        vm.deal(second, 400 ether);
+        vm.prank(second);
+        vault.stake{value: 200 ether}(poolSubject); // now 200 + 200 = 400 staked, half each
+
+        vm.prank(victim);
+        vault.buyCover{value: 2 ether}(poolSubject, 100e8, 30 days);
+
+        assertEq(vault.claimablePremiums(poolSubject, underwriter), 1 ether, "half the premium");
+        assertEq(vault.claimablePremiums(poolSubject, second), 1 ether, "half the premium");
+
+        uint256 before = second.balance;
+        vm.prank(second);
+        vault.claimPremiums(poolSubject);
+        assertEq(second.balance - before, 1 ether);
+        assertEq(vault.claimablePremiums(poolSubject, second), 0, "cannot claim twice");
+        assertEq(vault.trancheOf(poolSubject).staked, 400 ether, "the stake itself is untouched");
+    }
+
+    /// @notice You earn from the policies written while you were backing the subject, and nothing
+    ///         from the ones written before you arrived.
+    function test_lateUnderwriterEarnsNothingFromEarlierPolicies() public {
+        vm.prank(victim);
+        vault.buyCover{value: 2 ether}(poolSubject, 100e8, 30 days);
+
+        address latecomer = makeAddr("latecomer");
+        vm.deal(latecomer, 400 ether);
+        vm.prank(latecomer);
+        vault.stake{value: 200 ether}(poolSubject);
+
+        assertEq(vault.claimablePremiums(poolSubject, latecomer), 0, "staked after the policy was written");
+        assertEq(vault.claimablePremiums(poolSubject, underwriter), 2 ether, "the whole premium");
+    }
+
+    /// @notice Unstaking settles what is owed in the same transaction - nobody has to remember to
+    ///         collect before they leave.
+    function test_unstakeCarriesOutstandingPremiums() public {
+        vm.prank(victim);
+        vault.buyCover{value: 2 ether}(poolSubject, 100e8, 30 days);
+
+        uint256 before = underwriter.balance;
+        vm.prank(underwriter);
+        vault.unstake(poolSubject, 50 ether);
+
+        assertEq(underwriter.balance - before, 52 ether, "50 stake + 2 premium");
+        assertEq(vault.claimablePremiums(poolSubject, underwriter), 0);
+    }
+
+    /// @notice A premium paid on a subject nobody is underwriting is parked, not handed to whoever
+    ///         stakes next - that would pay for risk they never carried.
+    function test_premiumOnUnbackedSubjectIsParked() public {
+        vm.prank(owner);
+        registry.setPayoutCap(feedSubject, 1 ether);
+
+        vm.prank(victim);
+        vault.buyCover{value: 1 ether}(feedSubject, 100e8, 30 days);
+        assertEq(vault.unallocatedPremiums(feedSubject), 1 ether);
+
+        address opportunist = makeAddr("opportunist");
+        vm.deal(opportunist, 10 ether);
+        vm.prank(opportunist);
+        vault.stake{value: 1 ether}(feedSubject);
+        assertEq(vault.claimablePremiums(feedSubject, opportunist), 0);
+    }
+
     /// @notice USD is the unit of judgement; CTC is the unit of settlement.
     function test_usdToCtcConversion() public {
         assertEq(vault.usdToCtc(100e8), 100 ether, "at $1/CTC");

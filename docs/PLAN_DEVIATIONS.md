@@ -1,6 +1,6 @@
 # Deviations from the execution plan
 
-Three things differ from `watchtowerplan.md`. Each was a decision made while building, with the
+Six things differ from `watchtowerplan.md`. Each was a decision made while building, with the
 reason recorded here rather than left to be discovered.
 
 ## 1. Worker persistence is a JSON file, not Postgres + Drizzle
@@ -37,6 +37,67 @@ custodian are different subjects with their own accumulators, so a sandwich verd
 dollar figure to use. Pointing each priced subject at the feed subject fixes it — and it means the
 rules consume the same read interface Watchtower exposes to any other Creditcoin contract, which is a
 better answer than passing a number around.
+
+## 4. Creditcoin deployment runs on ethers, not `forge script`
+
+**Plan:** `forge script ... --broadcast` for every deployment.
+**Built:** `contracts/script/DeployCreditcoin.s.sol` and `SeedDemo.s.sol` are kept as the readable
+specification; `scripts/deploy-creditcoin.mjs` and `scripts/seed-demo.mjs` are what actually run.
+
+**Why:** Creditcoin's RPC omits `mixHash` from block headers, so alloy cannot deserialise a block and
+`forge script` — which forks the chain to execute `run()` and to follow receipts — fails. The
+dangerous part is *how* it fails: it broadcasts transactions it can then no longer track. The first
+attempt left three receipts out of nineteen transactions and a half-deployed system. ethers needs only
+`eth_sendRawTransaction` and `eth_getTransactionReceipt`, both served correctly. The rewrite also made
+both steps idempotent, which `forge script` never was.
+
+The same header quirk is why `foundry.toml` pins `evm_version = "london"`: post-merge specs demand
+`prevrandao`, which this chain's headers do not carry.
+
+## 5. `proofProvider.mergeProofs` is not used
+
+**Plan:** merge contiguous continuity proofs for stream catch-up across chunks.
+**Built:** each chunk is submitted as its own window with its own shared continuity proof.
+
+**Why:** merging pays off when several chunks are combined into *one* submission. They cannot be: the
+protocol's batch ceiling is ten transactions, which is also the ceiling on one window, so a catch-up
+of thirty transactions is three submissions regardless. Each already carries exactly one continuity
+proof — the cheapest shape the protocol offers — and merging them would produce a proof no call could
+use. The helper is real and correct; this system has no call site for it.
+
+## 6. `FailedTx` reads transaction types 0, 1 and 2 only
+
+**Plan:** silent on transaction types.
+**Built:** legacy, EIP-2930 and EIP-1559 are decoded; blob (3) and delegation (4) transactions revert
+with `UnsupportedTxType(txType)`.
+
+**Why:** `EvmV1Decoder` ships helpers for types 0 and 2 only. Type 1 is a three-chunk transaction with
+a documented `Type1Fields` layout, so it is read directly from its chunk — refusing an ordinary
+access-list transaction would be a bug, not a policy. Types 3 and 4 carry a fourth chunk whose split
+the decoder does not expose; guessing at it would reimburse from the wrong field, so they are refused
+by name instead. Stated in the README's limitations rather than left to be discovered by a judge
+pasting a blob transaction.
+
+---
+
+## Additions the plan did not specify
+
+- **Premiums are claimable.** The plan's vault tracked `premiumsEarned` but had no path to collect it,
+  which makes "stake to a tranche and earn premiums" a claim the contract could not honour. Premiums
+  now accrue per unit of stake at the moment cover is bought (`premiumPerShare`, settled against a
+  per-staker debt), are paid out by `claimPremiums`, and are carried automatically on `unstake`. A
+  premium paid on a subject nobody is underwriting is parked in `unallocatedPremiums` rather than
+  credited to whoever stakes next — that would pay for risk they never carried.
+- **Open breaches are counted, not flagged.** A stream can break twice before anyone settles the
+  first claim; flipping a boolean would have thawed the tranche after the first payout while the
+  second was still in dispute.
+- **Scanners hold no cursor of their own.** Each tick reads the proven cursor from Creditcoin and
+  works forward from it, so progress is only ever recorded by a confirmed receipt. The plan's
+  "commit the cursor only after an on-chain receipt" is stronger stated this way: there is no local
+  cursor left to get ahead of the chain. `lastScanned` survives only as a *nothing-here* watermark.
+- **`fixtures/` is replayed by the test suite.** `FixtureReplay.t.sol` asserts that the index derived
+  from a real Merkle sibling path equals the one the Proof Builder reported, and that the real receipt
+  bytes decode — the Day-1 thesis, committed as a test rather than left in a script's output.
 
 ---
 
