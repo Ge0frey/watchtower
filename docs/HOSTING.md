@@ -97,10 +97,32 @@ well-defined, so that one is a redeploy of the bridge, not an edit. On a Sepolia
 
 ## 2 — Dashboard on Vercel
 
-- **Root Directory**: `apps/web`. Vercel detects `pnpm-workspace.yaml` and installs from the repo
-  root, which `workspace:*` deps require. If it does not, set the build command explicitly:
-  `cd ../.. && pnpm install --frozen-lockfile && pnpm --filter @watchtower/web build`
-- **Environment**: every `NEXT_PUBLIC_*` key from `.env`, plus the worker:
+**Deployed.** Project `watchtower` (`prj_vMlb8ylb49e5DoXWJ2lh24jRSPsq`), git-connected to the same
+repo, at <https://watchtower-eight-chi.vercel.app>.
+
+- **Root Directory must be `apps/web`.** This is the whole trick, and getting it wrong fails the
+  build with `No Next.js version detected` — Vercel looks for `next` in the package.json at the root
+  directory, and the repo root has none. With it set, Vercel finds the app *and* still installs the
+  pnpm workspace from the repo root, which `workspace:*` deps require.
+- **Leave build/install/output commands empty.** The framework preset handles a Next app at that root.
+  A root `vercel.json` with `outputDirectory: apps/web/.next` is actively wrong once Root Directory is
+  `apps/web` — the path would resolve to `apps/web/apps/web/.next`.
+- The CLI has no flag for Root Directory. Set it through the API:
+
+  ```bash
+  vercel api "/v9/projects/<projectId>?teamId=<teamId>" -X PATCH -f rootDirectory=apps/web
+  ```
+
+- **Environment**: only four keys are needed — the bundle reads no others, and none of them is a
+  secret. No RPC keys go to Vercel; the browser talks to Creditcoin over the public endpoint in the
+  chain config, and wagmi discovers wallets over EIP-6963 with no WalletConnect project id.
+
+  ```
+  NEXT_PUBLIC_WORKER_API_URL, NEXT_PUBLIC_WATCHTOWER_CORE,
+  NEXT_PUBLIC_SUBJECT_REGISTRY, NEXT_PUBLIC_UNDERWRITING_VAULT
+  ```
+
+  Set them before the first build, on every target you will build:
 
   ```
   NEXT_PUBLIC_WORKER_API_URL=https://<your-service>.onrender.com
@@ -108,6 +130,18 @@ well-defined, so that one is a redeploy of the bridge, not an edit. On a Sepolia
 
   **https, not http.** The dashboard is served over https, so a plain-http worker is blocked as mixed
   content — `/api/stream` included, silently.
+
+  Verify it landed in the bundle rather than trusting the setting, because this is inlined at build
+  time and a stale value fails silently:
+
+  ```bash
+  curl -s https://<site>/dashboard | grep -oP '/_next/static/chunks/[A-Za-z0-9._-]+\.js' | sort -u \
+    | while read c; do curl -s "https://<site>$c" | grep -l localhost:8080 >/dev/null && echo "STALE: $c"; done
+  ```
+
+**Git is connected**, so a push to `main` rebuilds the site. A CLI `vercel deploy --prod` uploads the
+local working tree instead — which means the two can disagree. If the CLI shipped an uncommitted fix,
+the next git push rebuilds *without* it.
 
 `next.config.mjs` already handles the hosted case: it forwards `NEXT_PUBLIC_*` keys out of the root
 `.env` when that file exists, returns nothing when it does not, and a real platform variable always
