@@ -51,6 +51,9 @@ importers:
       fastify:
         specifier: ^5.2.1
         version: 5.12.3
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.13
       viem:
         specifier: ^2.21.55
         version: 2.56.3(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@4.6.2)
@@ -58,9 +61,6 @@ importers:
       '@types/node':
         specifier: ^22.10.5
         version: 22.20.2
-      tsx:
-        specifier: ^4.19.2
-        version: 4.23.13
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
@@ -73,6 +73,9 @@ importers:
       '@watchtower/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      canvas-confetti:
+        specifier: ^1.9.3
+        version: 1.9.4
       next:
         specifier: ^15.1.4
         version: 15.5.25(@types/node@22.20.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -92,6 +95,9 @@ importers:
       '@tailwindcss/postcss':
         specifier: ^4.3.3
         version: 4.3.3
+      '@types/canvas-confetti':
+        specifier: ^1.6.4
+        version: 1.9.0
       '@types/node':
         specifier: ^22.10.5
         version: 22.20.2
@@ -1323,6 +1329,9 @@ packages:
     peerDependencies:
       react: ^18 || ^19
 
+  '@types/canvas-confetti@1.9.0':
+    resolution: {integrity: sha512-aBGj/dULrimR1XDZLtG9JwxX1b4HPRF6CX9Yfwh3NvstZEm1ZL7RBnel4keCPSqs1ANRu1u2Aoz9R+VmtjYuTg==}
+
   '@types/debug@4.1.13':
     resolution: {integrity: sha512-KSVgmQmzMwPlmtljOomayoR89W4FynCAi3E8PPs7vmDVPe84hT+vGPKkJfThkmXs0x0jAaa9U8uW8bbfyS2fWw==}
 
@@ -1601,6 +1610,9 @@ packages:
 
   caniuse-lite@1.0.30001810:
     resolution: {integrity: sha512-TITQPUkaz+aVk5GL6NhOdwk1aEaNTSDPsGFWrTuhKGtjTF70jL/Oht2W4c6rXUe5fu7Ie19VIahAXHIIiWWNeg==}
+
+  canvas-confetti@1.9.4:
+    resolution: {integrity: sha512-yxQbJkAVrFXWNbTUjPqjF7G+g6pDotOUHGbkZq2NELZUMDpiJ85rIEazVb8GTaAptNW2miJAXbs1BtioA251Pw==}
 
   chalk@5.6.2:
     resolution: {integrity: sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA==}
@@ -4433,6 +4445,8 @@ snapshots:
       '@tanstack/query-core': 5.102.8
       react: 19.3.0
 
+  '@types/canvas-confetti@1.9.0': {}
+
   '@types/debug@4.1.13':
     dependencies:
       '@types/ms': 2.1.0
@@ -5209,6 +5223,8 @@ snapshots:
   camelcase@5.3.1: {}
 
   caniuse-lite@1.0.30001810: {}
+
+  canvas-confetti@1.9.4: {}
 
   chalk@5.6.2: {}
 
