@@ -1,0 +1,61 @@
+# Keeps the prosecutor from going to sleep, and says so when it is not well.
+#
+# Render's free plan spins a service down after 15 minutes with no *inbound HTTP traffic* - the
+# scanner timers running inside the process do not count as traffic. A cold start then costs 30-60s
+# before /api/health answers, because the worker verifies the chain id and the protocol's chain
+# mapping before the API binds.
+#
+# Two schedules, deliberately different endpoints:
+#
+#   warm    /api/rules   - returns a static object. No store read, no RPC. Pinging /api/health this
+#                          often would cost six RPC round trips a time, roughly 1,700 extra calls a
+#                          day against the Alchemy free tier, to learn nothing the cheap route does
+#                          not already prove.
+#   health  /api/health  - the real check, rarely. Fails the run when the worker is up but unwell,
+#                          so GitHub emails you instead of a judge finding out.
+#
+# Honest caveat: GitHub's scheduled runs are best-effort and get delayed under load, sometimes past
+# the 15-minute sleep window. Treat this as the free backstop and an external uptime monitor as the
+# primary - see docs/HOSTING.md.
+
+name: Keep prosecutor warm
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: keep-worker-warm
+  cancel-in-progress: false
+
+env:
+  WORKER: https://watchtower-prosecutor.onrender.com
+
+jobs:
+  warm:
+    if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wake the container
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            --max-time 90 --retry 3 --retry-delay 10 --retry-connrefused \
+            "$WORKER/api/rules")
+          echo "GET /api/rules -> $code"
+          test "$code" = "200"
+
+  health:
+    if: github.event.schedule == '7,37 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Assert the prosecutor is healthy
+        run: |
+          body=$(curl -sS --max-time 120 --retry 3 --retry-delay 15 --retry-connrefused \
+            "$WORKER/api/health")
+          echo "$body" | jq '{ok, chainId, prosecutorKeyed, submitEnabled, queueDepth, rpcStatus, cursorLag}'
+          # `ok` already folds in: keyed, funded, right chain, every RPC reachable.
+          echo "$body" | jq -e '.ok == true and .chainId == 102031' > /dev/null

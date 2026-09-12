@@ -152,15 +152,31 @@ wins over the file. Nothing to change.
 ## 3 — Keep it warm
 
 Render's free plan spins a service down after 15 minutes with **no inbound HTTP traffic** — the
-scanner timers running inside the process do not count. Point a free scheduler at the health
-endpoint every 5 minutes:
+scanner timers running inside the process do not count.
 
-```
-GET https://<your-service>.onrender.com/api/health
-```
+**Ping `/api/rules`, not `/api/health`.** `/api/rules` returns a static object: no store read, no
+RPC. `/api/health` costs six RPC round trips a call, so pinging *that* every five minutes spends
+roughly 1,700 extra Alchemy calls a day to learn nothing the cheap route has not already proved.
+Keep `/api/health` for the occasional real check, where its cost buys something.
 
-cron-job.org or UptimeRobot both do this on a free account. It does two jobs: the container never
-idles into a spin-down, and you find out the worker died rather than a judge finding out.
+Two layers, because they fail differently:
+
+**1. GitHub Actions** — `.github/workflows/keep-worker-warm.yml`, committed. Free on a public repo,
+no account to create: `/api/rules` every 5 minutes, `/api/health` twice an hour with the run failing
+when `ok` is false, so GitHub emails you. Its weakness is scheduling — GitHub's cron is best-effort
+and gets delayed under load, sometimes past the 15-minute sleep window. It is the backstop.
+
+**2. An external uptime monitor** — the primary, because it actually schedules on time and alerts
+faster. Either works on a free account:
+
+- **cron-job.org** — 1-minute resolution free. New cron job → URL
+  `https://watchtower-prosecutor.onrender.com/api/rules` → every 5 minutes → enable failure
+  notifications.
+- **UptimeRobot** — 5-minute resolution free. New monitor → HTTP(s) → same URL → 5 minutes → add
+  your email as the alert contact.
+
+Between them the container never idles into a spin-down, and you find out the worker died rather
+than a judge finding out.
 
 **The cap that matters:** the free plan grants 750 instance-hours per month and a service kept awake
 around the clock uses about 730. That fits for exactly one service — which is why the dashboard is on
