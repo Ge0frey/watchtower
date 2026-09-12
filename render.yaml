@@ -20,9 +20,12 @@ services:
     region: oregon
 
     # Install from the repo root. `@watchtower/shared` and `@watchtower/attestcoin` are `workspace:*`
-    # deps, so an install scoped to apps/prosecutor resolves neither. corepack pins pnpm to the
-    # version in the root package.json's `packageManager` field.
-    buildCommand: corepack enable && pnpm install --frozen-lockfile
+    # deps, so an install scoped to apps/prosecutor resolves neither.
+    #
+    # No `corepack enable` in front of it: Render's Node image already ships pnpm at /usr/bin/pnpm
+    # and mounts /usr/bin read-only, so corepack dies trying to unlink the binary it is replacing -
+    # `EROFS: read-only file system, unlink '/usr/bin/pnpm'`, six seconds into the build.
+    buildCommand: pnpm install --frozen-lockfile
     startCommand: pnpm --filter @watchtower/prosecutor start
 
     # Render probes this until it answers, then routes traffic. The endpoint degrades rather than

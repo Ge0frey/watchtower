@@ -46,11 +46,52 @@ const BOOT_GRACE_MS = 90_000;
  */
 let downSince: number | null = null;
 
-const maxLag = (lag: Record<string, number> | undefined): number => {
-  const values = Object.values(lag ?? {});
-  // An empty map means the worker could not read the registry, not that it is caught up. Reporting 0
-  // is the right degradation: we cannot prove it is behind, so we do not hold the screen hostage.
-  return values.length > 0 ? Math.max(...values) : 0;
+/**
+ * The lag of each subject at the previous sample, and whether it improved between the two.
+ *
+ * Being behind is not the same as catching up, and `cursorLag` cannot tell them apart on its own: it
+ * measures the *proven on-chain cursor* against the attested head, and a stream subject's cursor only
+ * moves when a submission settles. A custodian nobody has transacted with therefore drifts further
+ * behind every block while its scanner is working perfectly and has simply found nothing to prove.
+ *
+ * Treating that as "catching up" leaves the warm-up panel running forever on a healthy deployment -
+ * observed on the live worker, where DemoBridge climbed 10,439 -> 10,449 while Chainlink fell
+ * 6,082 -> 77. So a subject counts as catching up only while its number is going *down*.
+ *
+ * Both live at module scope and are written inside `queryFn`, once per fetch, for the same reason
+ * `downSince` is: several components mount this hook against one shared query.
+ */
+let previousLag: Record<string, number> = {};
+let improving: Record<string, boolean> = {};
+
+/**
+ * Whether the worker was ever unreachable this session - which is what separates a genuine cold
+ * start from an ordinary page load against a worker that never went away.
+ *
+ * It decides the first lag sample, where there is no previous value to compare against. After a real
+ * outage the scanners are certainly sweeping, so assume so and show the catch-up. On a warm load,
+ * assume nothing: a subject that is merely far behind is the steady state here, and treating it as
+ * catch-up would put the panel and its celebration on every single visit.
+ */
+let sawOutage = false;
+
+function sampleLag(current: Record<string, number> | undefined) {
+  const lag = current ?? {};
+  const next: Record<string, boolean> = {};
+  for (const [label, value] of Object.entries(lag)) {
+    const prev = previousLag[label];
+    next[label] = prev === undefined ? sawOutage : value < prev;
+  }
+  improving = next;
+  previousLag = lag;
+}
+
+/** How far behind the subjects that are actually sweeping are. Zero when none of them is. */
+const sweepingLag = (lag: Record<string, number> | undefined): number => {
+  const behind = Object.entries(lag ?? {}).filter(
+    ([label, value]) => value > LAG_TOLERANCE && improving[label],
+  );
+  return behind.length > 0 ? Math.max(...behind.map(([, value]) => value)) : 0;
 };
 
 /**
@@ -71,9 +112,11 @@ export function useWorkerStatus() {
       try {
         const report = await api.health();
         downSince = null;
+        sampleLag(report.cursorLag);
         return report;
       } catch (error) {
         downSince ??= Date.now();
+        sawOutage = true;
         throw error;
       }
     },
@@ -88,15 +131,15 @@ export function useWorkerStatus() {
         const waiting = downSince !== null && Date.now() - downSince > BOOT_GRACE_MS;
         return waiting ? 15_000 : 2_000;
       }
-      return maxLag(data.cursorLag) > LAG_TOLERANCE ? 3_000 : 15_000;
+      return sweepingLag(data.cursorLag) > 0 ? 3_000 : 15_000;
     },
   });
 
-  const lag = maxLag(health.data?.cursorLag);
+  const lag = sweepingLag(health.data?.cursorLag);
 
   let phase: WorkerPhase;
   if (health.isSuccess) {
-    phase = lag > LAG_TOLERANCE ? 'catching-up' : 'live';
+    phase = lag > 0 ? 'catching-up' : 'live';
   } else if (downSince === null) {
     // Nothing has failed yet - this is the opening request, not an outage.
     phase = 'checking';

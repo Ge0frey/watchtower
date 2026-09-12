@@ -29,9 +29,26 @@ Render  →  copy the https URL  →  Vercel env  →  build  →  pinger
 
 ## 1 — Worker on Render
 
+**Deployed.** Service `srv-dais4bek1f9s739dpbhg`, tracking `main` with auto-deploy on, at
+<https://watchtower-prosecutor.onrender.com>. What follows is how it was built and how to rebuild it.
+
 `render.yaml` at the repo root is the blueprint. New → Blueprint, point it at the repo, and Render
 reads the service definition from it. Everything in it is `sync: false`, so all values are set in the
 dashboard and none are committed.
+
+The CLI cannot launch a blueprint — `render blueprints` only validates one (`render blueprints
+validate ./render.yaml`). To create the service from the command line, pass the same settings to
+`render services create` as flags, with each variable as its own `--env-var KEY=VALUE`. There is no
+`render env` command in CLI v2.28.0 and `render services update` has no env flag, so **environment
+variables can only be set at create time or in the dashboard.**
+
+Two things that will bite on a Node service:
+
+- **Do not put `corepack enable` in the build command.** Render's Node image already ships pnpm at
+  `/usr/bin/pnpm` and mounts `/usr/bin` read-only, so corepack fails trying to unlink the binary it
+  means to replace: `EROFS: read-only file system, unlink '/usr/bin/pnpm'`. Just call `pnpm`.
+- **The repo must be reachable.** A private repo returns `400 ... repository URL is invalid or
+  unfetchable` until the Render GitHub App is granted access to it, which is a browser-only step.
 
 ### Environment
 
@@ -61,9 +78,13 @@ close to the head, but the reserve stream does not:
 |---|---|---|
 | `intraBlock.ts` | `safeHead - 1` | immediate |
 | `feed.ts` | `max(FEED_ANCHOR_HEIGHT, safeHead - 2000)` | ≤ 2000 blocks |
-| `stream.ts` | `BRIDGE_ANCHOR_HEIGHT`, unclamped | as far back as you set it |
+| `stream.ts` | `BRIDGE_ANCHOR_HEIGHT`, unclamped | 500 blocks per 20s tick — see below |
 
-So move both anchors close to the head before the deploy you demo from:
+The reserve stream is the only unclamped one, but it is not unbounded: `stream.ts` advances at most
+`from + 500` per tick on a 20s timer, so a 10,000-block backlog is about 21 ticks — **roughly seven
+minutes**, not hours. Measured on the live deployment, which started ~10,400 Sepolia blocks behind.
+
+Still, move both anchors close to the head before the deploy you demo from:
 
 ```bash
 echo $(( $(cast block-number --rpc-url mainnet) - 500 ))    # -> FEED_ANCHOR_HEIGHT
