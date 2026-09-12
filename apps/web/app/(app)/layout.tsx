@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { AppHeader } from '@/components/chrome/AppHeader';
 import { WorkerBanner } from '@/components/chrome/WorkerBanner';
+import { WorkerWarmup } from '@/components/chrome/WorkerWarmup';
 
 /**
  * The application shell.
@@ -14,6 +15,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen">
       <AppHeader />
       <main className="shell pt-14 pb-32">
+        <WorkerWarmup />
         <WorkerBanner />
         {children}
       </main>

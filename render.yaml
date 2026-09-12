@@ -1,0 +1,89 @@
+# Render blueprint for the prosecutor.
+#
+# The worker is a daemon, not a request handler: three scanners on timers, a Creditcoin indexer, a
+# submission queue in front of a hot key, and an SSE fan-out held open for minutes at a time. It has
+# to be running when every browser tab is closed, which is why it is a container here and not a
+# function on the same platform as the dashboard.
+#
+# The dashboard is deployed separately on Vercel. It reads Creditcoin directly, so it keeps working -
+# subjects, vault, cover, staking, every wallet action - with this service stopped. What stops is
+# history, the live feed, and the ability to build a proof. See docs/HOSTING.md.
+#
+# Every value is `sync: false`: set in the Render dashboard, never committed. One of them is a
+# private key.
+
+services:
+  - type: web
+    name: watchtower-prosecutor
+    runtime: node
+    plan: free
+    region: oregon
+
+    # Install from the repo root. `@watchtower/shared` and `@watchtower/attestcoin` are `workspace:*`
+    # deps, so an install scoped to apps/prosecutor resolves neither. corepack pins pnpm to the
+    # version in the root package.json's `packageManager` field.
+    buildCommand: corepack enable && pnpm install --frozen-lockfile
+    startCommand: pnpm --filter @watchtower/prosecutor start
+
+    # Render probes this until it answers, then routes traffic. The endpoint degrades rather than
+    # throwing - an unfunded or keyless worker still reports 200 with `ok: false` - so this is a
+    # liveness check, not a correctness one, which is what it should be.
+    healthCheckPath: /api/health
+
+    envVars:
+      # ---- chains
+      - { key: CC3_RPC, sync: false }
+      - { key: CC3_CHAIN_ID, sync: false }
+      - { key: MAINNET_RPC, sync: false }
+      - { key: MAINNET_RPC_FALLBACK, sync: false }
+      - { key: SEPOLIA_RPC, sync: false }
+      - { key: SEPOLIA_RPC_FALLBACK, sync: false }
+
+      # ---- attestcoin
+      - { key: PROOF_BUILDER_URL, sync: false }
+      - { key: BLOCK_PROVER_PRECOMPILE, sync: false }
+      - { key: CHAIN_INFO_PRECOMPILE, sync: false }
+      - { key: CHAIN_KEY_SEPOLIA, sync: false }
+      - { key: CHAIN_KEY_MAINNET, sync: false }
+
+      # ---- the only key this service needs. DEPLOYER_PK and SEPOLIA_DEMO_PK are deploy-time keys
+      # and are deliberately absent: a host that cannot use a key should not hold one.
+      - { key: PROSECUTOR_PK, sync: false }
+
+      # ---- deployment
+      - { key: SUBJECT_REGISTRY, sync: false }
+      - { key: UNDERWRITING_VAULT, sync: false }
+      - { key: WATCHTOWER_CORE, sync: false }
+      - { key: RULE_INTRABLOCK, sync: false }
+      - { key: RULE_RESERVE, sync: false }
+      - { key: RULE_FEED, sync: false }
+      - { key: RULE_FAILEDTX, sync: false }
+
+      # ---- subjects
+      - { key: SUBJECT_POOL, sync: false }
+      - { key: SUBJECT_BRIDGE, sync: false }
+      - { key: SUBJECT_FEED, sync: false }
+      - { key: SUBJECT_ACCOUNT, sync: false }
+
+      # ---- source contracts and their anchors
+      - { key: DEMO_POOL_MAINNET, sync: false }
+      - { key: DEMO_AGGREGATOR_MAINNET, sync: false }
+      - { key: DEMO_BRIDGE_SEPOLIA, sync: false }
+      - { key: DEMO_FAILED_TX_WATCH, sync: false }
+      - { key: FEED_ANCHOR_HEIGHT, sync: false }
+      - { key: BRIDGE_ANCHOR_HEIGHT, sync: false }
+
+      # ---- worker behaviour
+      - { key: SUBMIT_ENABLED, sync: false }
+      - { key: PROSECUTOR_BOND_WEI, sync: false }
+      - { key: SCAN_CONFIRMATIONS, sync: false }
+      - { key: LOG_RANGE, sync: false }
+      - { key: INDEXER_POLL_MS, sync: false }
+
+    # Deliberately unset:
+    #   PORT             - injected by Render; config.ts reads it before WORKER_PORT.
+    #   WORKER_DATA_DIR  - defaults to .data under cwd. The free plan has no disk to point it at, so
+    #                      worker state is lost on each spin-down and each deploy. The keep-warm
+    #                      pinger in docs/HOSTING.md is what stops that happening in practice.
+    #   DATABASE_URL     - the JSON store is the driver. src/db/schema.sql is the unused Postgres path.
+    #   NEXT_PUBLIC_*    - browser configuration; those belong to the Vercel project.

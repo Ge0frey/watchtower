@@ -11,7 +11,15 @@ const num = (key: string, fallback: number) => {
 };
 
 export const config = {
-  port: num('WORKER_PORT', 8080),
+  /**
+   * `PORT` first, `WORKER_PORT` second.
+   *
+   * Every container host - Render, Railway, Fly, Cloud Run - injects `PORT` and routes to whatever
+   * the process binds there. Reading only `WORKER_PORT` means binding 8080 while the platform probes
+   * the port it assigned, so the health check never passes and the service is killed as unhealthy
+   * before it has done anything wrong. `WORKER_PORT` stays as the local override.
+   */
+  port: num('PORT', num('WORKER_PORT', 8080)),
   dataDir: process.env.WORKER_DATA_DIR ?? resolve(process.cwd(), '.data'),
 
   cc3Rpc: process.env.CC3_RPC ?? 'https://rpc.cc3-testnet.creditcoin.network',
