@@ -35,6 +35,10 @@ export default function DashboardPage() {
   const { incidents, candidates, progress } = useIncidentFeed();
   const { offline } = useWorkerStatus();
 
+  // Tiles and the headline count show what is live. Money totals below stay on the full set, so a
+  // retired subject's stake never silently vanishes from the balance sheet.
+  const watched = subjects.filter((s) => s.active);
+
   const feed = subjects.find((s) => s.kind === 2);
   const head = subjects.reduce<{ h: bigint; i: number } | null>(
     (best, s) => (s.cursorHeight > (best?.h ?? 0n) ? { h: s.cursorHeight, i: s.cursorIndex } : best),
@@ -97,7 +101,7 @@ export default function DashboardPage() {
           />
         </div>
         <div className="col-span-1 md:col-span-3">
-          <Stat label="Subjects watched" value={isLoading ? '…' : String(subjects.length)} />
+          <Stat label="Subjects watched" value={isLoading ? '…' : String(watched.length)} />
         </div>
         <div className="col-span-1 md:col-span-3">
           <Stat
@@ -174,13 +178,13 @@ export default function DashboardPage() {
           }
         />
 
-        {subjects.length === 0 ? (
+        {watched.length === 0 ? (
           <Empty title={isLoading ? 'Reading the registry…' : 'No subjects registered'}>
             {!isLoading && 'Register one with `pnpm watch <address>` to put Watchtower on a contract.'}
           </Empty>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {subjects.map((subject) => (
+            {watched.map((subject) => (
               <SubjectTile key={subject.id} subject={subject} />
             ))}
           </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RULES, formatCtc, watchtowerCoreAbi } from '@watchtower/shared';
 import { rehydrate } from '@/components/actions/ChallengePanel';
 import { ConnectGate, TxState } from '@/components/actions/TxButton';
@@ -36,12 +36,34 @@ export default function ProsecutePage() {
   const write = useWatchtowerWrite();
   const { offline } = useWorkerStatus();
 
+  /**
+   * Arrive with the evidence already loaded.
+   *
+   * `stage-sandwich.mjs` prints a link carrying the subject it registered and the three hashes it
+   * found. Selecting the wrong subject by hand is the one mistake the chain does not report: the rule
+   * finds no swaps on that pool, returns "not violated", and the submission is accepted with nothing
+   * in it. Removing the choice removes the mistake.
+   *
+   * Read from `window.location.search` rather than `useSearchParams`, which would force this route
+   * out of static rendering and into a Suspense boundary for no gain on a page that is already
+   * client-only. These seed initial state only, so changing either field afterwards still works.
+   */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const subject = params.get('subject');
+    const tx = params.get('tx');
+    if (subject) setSubjectId(subject);
+    if (tx) setValue(tx.split(',').map((h) => h.trim()).filter(Boolean).join('\n'));
+  }, []);
+
   const hashes = value
     .split(/[\s,]+/)
     .map((h) => h.trim())
     .filter((h) => /^0x[0-9a-fA-F]{64}$/.test(h));
 
-  const insurable = subjects.filter((s) => s.kind !== 2);
+  // Retired subjects stay in the registry so old incidents remain readable, but offering one here
+  // would be offering a guaranteed revert: `submitEvidence` rejects an inactive subject outright.
+  const insurable = subjects.filter((s) => s.kind !== 2 && s.active);
   const selected = subjects.find((s) => s.id === subjectId) ?? insurable[0];
   const ruleId = hashes.length === 3 ? RULES.intraBlockExtraction.id : RULES.failedTx.id;
 
@@ -131,6 +153,13 @@ export default function ProsecutePage() {
                 </option>
               ))}
             </Select>
+            {/* The pool the rule will look for swaps on. Without it a mismatch between the selected
+                subject and the pasted evidence is invisible until the verdict comes back empty. */}
+            {selected && (
+              <p className="mt-2.5 font-mono text-[11px] text-ink/45">
+                watching {selected.sourceContract}
+              </p>
+            )}
           </div>
 
           <div>

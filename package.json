@@ -21,7 +21,9 @@
     "capture": "pnpm --filter @watchtower/attestcoin capture",
     "demo:skip-gap": "pnpm --filter @watchtower/attestcoin demo:skip-gap",
     "watch": "node scripts/watch-address.mjs",
-    "find:sandwich": "node scripts/find-sandwich.mjs"
+    "find:sandwich": "node scripts/find-sandwich.mjs",
+    "stage:sandwich": "node scripts/stage-sandwich.mjs",
+    "retire": "node scripts/retire-subject.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

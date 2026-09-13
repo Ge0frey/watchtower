@@ -45,7 +45,7 @@ packages/attestcoin/ Every conversation with the protocol: SDK client, proofs, p
 apps/prosecutor/    The worker: three scanners, one submission path, indexer, REST + SSE.
 apps/web/           Next.js. A landing page that makes the argument, then the application.
 fixtures/           Proof bundles captured from the live testnet, replayed by the test suite.
-docs/               Integration doc, architecture, demo runbook.
+docs/               Integration doc, architecture, demo runbook, what every script is for.
 ```
 
 ## Quick start
@@ -73,11 +73,15 @@ pnpm worker                                       # prosecutor + API on :8080
 pnpm web                                          # dashboard on :3000
 
 # ops
+pnpm stage:sandwich                               # find a real sandwich, register it, get a paste-ready link
 pnpm find:sandwich --span 150                     # a real sandwich happening right now
 pnpm watch 0xPOOL --label "UniV2 DAI/WETH"        # register + fund a watch on any contract
+pnpm retire 0xPOOL                                # take a subject out of the dropdown again
 pnpm demo:skip-gap                                # stage a stream step with a hole in it
 pnpm balances                                     # every key, on the chain it spends on
 ```
+
+Every command, and when to reach for which, is in [`docs/SCRIPTS.md`](docs/SCRIPTS.md).
 
 `/` is the landing page — the argument, with two live numbers read off Creditcoin by the browser so
 the claim is checkable before anything is explained. `/dashboard` is where the application starts.

@@ -6,7 +6,10 @@ import { useChainState } from '@/hooks/useChainState';
 
 /** The catalogue: everything Watchtower is currently willing to insure. */
 export default function SubjectsPage() {
-  const { data: subjects = [], isLoading, isError } = useChainState();
+  const { data: all = [], isLoading, isError } = useChainState();
+  // Retired subjects keep their page and their history, and stay listed in the Vault so nobody's
+  // stake is hidden from them. They just leave the catalogue.
+  const subjects = all.filter((s) => s.active);
 
   return (
     <>
