@@ -16,7 +16,7 @@
 #
 # Honest caveat: GitHub's scheduled runs are best-effort and get delayed under load, sometimes past
 # the 15-minute sleep window. Treat this as the free backstop and an external uptime monitor as the
-# primary - see docs/HOSTING.md.
+# primary - see /docs/hosting in the app.
 
 name: Keep prosecutor warm
 

@@ -7,7 +7,7 @@
 #
 # The dashboard is deployed separately on Vercel. It reads Creditcoin directly, so it keeps working -
 # subjects, vault, cover, staking, every wallet action - with this service stopped. What stops is
-# history, the live feed, and the ability to build a proof. See docs/HOSTING.md.
+# history, the live feed, and the ability to build a proof. See /docs/hosting in the app.
 #
 # Every value is `sync: false`: set in the Render dashboard, never committed. One of them is a
 # private key.
@@ -87,6 +87,6 @@ services:
     #   PORT             - injected by Render; config.ts reads it before WORKER_PORT.
     #   WORKER_DATA_DIR  - defaults to .data under cwd. The free plan has no disk to point it at, so
     #                      worker state is lost on each spin-down and each deploy. The keep-warm
-    #                      pinger in docs/HOSTING.md is what stops that happening in practice.
+    #                      pinger in /docs/hosting is what stops that happening in practice.
     #   DATABASE_URL     - the JSON store is the driver. src/db/schema.sql is the unused Postgres path.
     #   NEXT_PUBLIC_*    - browser configuration; those belong to the Vercel project.
