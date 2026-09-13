@@ -60,8 +60,8 @@ export default function LandingPage() {
           <div className="mt-24 grid gap-10 border-t border-ink/15 pt-12 md:mt-32 lg:grid-cols-[1.4fr_1fr] lg:items-start">
             <p className="max-w-[54ch] text-[clamp(1.05rem,1.6vw,1.375rem)] leading-relaxed text-ink/70">
               A contract on Ethereum cannot observe the transactions beside it.{' '}
-              <span className="text-ink">Watchtower is insurance that pays out when Ethereum takes
-              your money</span> &mdash; and it never takes your word for it. Every claim is a
+              <span className="text-ink">Watchtower is insurance that pays out when Ethereum costs
+              you money</span>, and it never takes your word for it. Every claim is a
               cryptographic proof, verified on Creditcoin, priced and settled in a single block.
             </p>
 
