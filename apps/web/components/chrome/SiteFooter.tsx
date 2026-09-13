@@ -38,6 +38,7 @@ export function SiteFooter() {
               <FooterLink href="/incidents">Incidents</FooterLink>
               <FooterLink href="/vault">Vault</FooterLink>
               <FooterLink href="/prosecute">Prosecute</FooterLink>
+              <FooterLink href="/docs">Docs</FooterLink>
             </FooterColumn>
 
             <FooterColumn title="Understand">
@@ -45,6 +46,8 @@ export function SiteFooter() {
               <FooterLink href="/#insight">The insight</FooterLink>
               <FooterLink href="/#engine">The engine</FooterLink>
               <FooterLink href="/#honest">What we admit</FooterLink>
+              <FooterLink href="/docs/architecture">Architecture</FooterLink>
+              <FooterLink href="/docs/attestcoin">Protocol integration</FooterLink>
             </FooterColumn>
 
             <FooterColumn title="Verify">

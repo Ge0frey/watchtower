@@ -43,24 +43,24 @@ contracts/          Foundry. The ASC, the rule library, the vault. 79 tests, fuz
 packages/shared/    Chain config, rule ids, types, generated ABIs.
 packages/attestcoin/ Every conversation with the protocol: SDK client, proofs, pre-flight, gas.
 apps/prosecutor/    The worker: three scanners, one submission path, indexer, REST + SSE.
-apps/web/           Next.js. A landing page that makes the argument, then the application.
+apps/web/           Next.js. A landing page, the application, and /docs - the documentation itself.
 fixtures/           Proof bundles captured from the live testnet, replayed by the test suite.
-docs/               Integration doc, architecture, demo runbook, what every script is for.
 ```
 
 ## Quick start
 
-See [`docs/ENV_SETUP.md`](docs/ENV_SETUP.md) for where every `.env` value comes from — only three of
-them are things you create.
+The documentation lives in the application itself, at [`/docs`](https://watchtower-attestation.vercel.app/docs) — run `pnpm web` and open
+it locally, or read it on the deployed site. [Environment](https://watchtower-attestation.vercel.app/docs/environment) covers where every
+`.env` value comes from; only three of them are things you create.
 
 ```bash
 pnpm install
-cp .env.example .env          # see docs/ENV_SETUP.md
+cp .env.example .env          # see /docs/environment
 
-# contracts  (see docs/DEPLOY.md for the order and what to paste where)
+# contracts  (see /docs/deploy for the order and what to paste where)
 cd contracts && forge test                       # 79 tests, no network needed
 forge script script/DeploySepolia.s.sol --rpc-url sepolia --broadcast
-cd .. && pnpm deploy:creditcoin                  # NOT forge script - see docs/DEPLOY.md §2
+cd .. && pnpm deploy:creditcoin                  # NOT forge script - see /docs/deploy
 pnpm seed
 
 # verify the integration against the live chain, not against the docs
@@ -81,7 +81,7 @@ pnpm demo:skip-gap                                # stage a stream step with a h
 pnpm balances                                     # every key, on the chain it spends on
 ```
 
-Every command, and when to reach for which, is in [`docs/SCRIPTS.md`](docs/SCRIPTS.md).
+Every command, and when to reach for which, is in [Scripts](https://watchtower-attestation.vercel.app/docs/scripts).
 
 `/` is the landing page — the argument, with two live numbers read off Creditcoin by the browser so
 the claim is checkable before anything is explained. `/dashboard` is where the application starts.
@@ -177,9 +177,10 @@ because completeness cannot be proven on-chain; anyone who shows a skipped trans
 claimed range rolls the accumulator back and takes the bond. That fraud proof is itself an ordinary
 verified window — **Watchtower's defence runs on Watchtower**.
 
-See [`docs/USER_FLOW.md`](docs/USER_FLOW.md) for what a person actually does with it,
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for how it is built, and
-[`docs/ATTESTCOIN_INTEGRATION.md`](docs/ATTESTCOIN_INTEGRATION.md) for the protocol integration.
+The full documentation is a route in the application: [`/docs`](https://watchtower-attestation.vercel.app/docs) — thirty-odd pages covering
+the concepts, what a person actually does with it, the on-chain program, the worker, and how to
+deploy and operate the whole thing. Start with [The whole flow](https://watchtower-attestation.vercel.app/docs/end-to-end),
+[Architecture](https://watchtower-attestation.vercel.app/docs/architecture) and [Attestcoin Protocol](https://watchtower-attestation.vercel.app/docs/attestcoin).
 
 ## What we are honest about
 

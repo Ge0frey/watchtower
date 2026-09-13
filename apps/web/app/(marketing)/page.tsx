@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Bento, DoorCard } from '@/components/ui';
+import { ArrowLink, Bento, DoorCard } from '@/components/ui';
 import { HeroBlock } from '@/components/landing/HeroBlock';
 import { LiveProof } from '@/components/landing/LiveProof';
 
@@ -65,19 +65,34 @@ export default function LandingPage() {
               cryptographic proof, verified on Creditcoin, priced and settled in a single block.
             </p>
 
-            <div className="flex flex-wrap items-start gap-3 lg:justify-end">
-              <Link
-                href="/dashboard"
-                className="rounded-md border border-accent bg-accent px-7 py-4 font-mono text-[11px] uppercase tracking-[0.14em] text-ink transition-colors hover:border-accent-deep hover:bg-accent-deep hover:text-paper"
-              >
-                See it running
+            {/*
+              Three ways on, at three weights: a filled accent action, a hairline
+              one, and a line of type. The third is deliberately not a third box -
+              the accent is spent once per page, and a row of three equal controls
+              states no hierarchy at all, which is the fastest way to make a first
+              screen look like a template. The docs link keeps the buttons' exact
+              setting - mono, 11px, 0.14em - so it reads as the same family one step
+              quieter, rather than as a stray link that wandered in.
+            */}
+            <div className="flex flex-col gap-5 lg:items-end">
+              <div className="flex flex-wrap items-start gap-3 lg:justify-end">
+                <Link
+                  href="/dashboard"
+                  className="rounded-md border border-accent bg-accent px-7 py-4 font-mono text-[11px] uppercase tracking-[0.14em] text-ink transition-colors hover:border-accent-deep hover:bg-accent-deep hover:text-paper"
+                >
+                  See it running
+                </Link>
+                <a
+                  href="#problem"
+                  className="rounded-md border border-ink/25 px-7 py-4 font-mono text-[11px] uppercase tracking-[0.14em] text-ink transition-colors hover:border-ink hover:bg-ink hover:text-paper"
+                >
+                  How it works
+                </a>
+              </div>
+
+              <Link href="/docs" className="lg:pr-1">
+                <ArrowLink>Read the docs</ArrowLink>
               </Link>
-              <a
-                href="#problem"
-                className="rounded-md border border-ink/25 px-7 py-4 font-mono text-[11px] uppercase tracking-[0.14em] text-ink transition-colors hover:border-ink hover:bg-ink hover:text-paper"
-              >
-                How it works
-              </a>
             </div>
           </div>
 

@@ -10,9 +10,13 @@ import { Lockup } from '@/components/brand/Logo';
 import { ConnectButton } from './ConnectButton';
 
 /**
- * Five destinations, in the order a person meets them, each with the one word that
+ * Six destinations, in the order a person meets them, each with the one word that
  * says why they would go there. The descriptor is not decoration — it is the fix for
  * a navigation bar of nouns that mean nothing until you have already used the app.
+ *
+ * Docs sits last because it is the one entry that is never a step in a task: the
+ * other five are things you do, and it is the thing you read when one of them did
+ * not go the way you expected.
  */
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', hint: 'what is happening' },
@@ -20,6 +24,7 @@ const NAV = [
   { href: '/incidents', label: 'Incidents', hint: 'what was judged' },
   { href: '/vault', label: 'Vault', hint: 'what backs it' },
   { href: '/prosecute', label: 'Prosecute', hint: 'file evidence' },
+  { href: '/docs', label: 'Docs', hint: 'how all of it works' },
 ];
 
 /**
