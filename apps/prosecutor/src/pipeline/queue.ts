@@ -2,6 +2,7 @@ import type { Candidate } from '@watchtower/shared';
 import { bus } from '../bus.js';
 import { config } from '../config.js';
 import { store } from '../db/store.js';
+import { isPermanent } from './replay.js';
 import { backoffMs, prosecute } from './submit.js';
 
 /**
@@ -41,13 +42,31 @@ class Queue {
         const current = store.candidate(job.candidate.id);
         const attempts = current?.attempts ?? 0;
 
-        if (attempts >= config.maxAttempts) {
+        // Attempts are for failures that might go the other way next time. A spent window or a
+        // retired subject never will, and retrying one costs a full submission's gas per attempt.
+        const permanent = await isPermanent(job.candidate, error);
+
+        if (permanent || attempts >= config.maxAttempts) {
           store.setCandidateState(job.candidate.id, 'UNPROVABLE', message);
           bus.publish({ type: 'error', candidateId: job.candidate.id, message });
-          console.error(`[queue] ${job.candidate.id} gave up after ${attempts} attempts: ${message}`);
+          console.error(
+            permanent
+              ? `[queue] ${job.candidate.id} cannot succeed, not retrying: ${message}`
+              : `[queue] ${job.candidate.id} gave up after ${attempts} attempts: ${message}`,
+          );
         } else {
           store.setCandidateState(job.candidate.id, 'FAILED', message);
           const delay = backoffMs(attempts);
+          // The store has already announced FAILED. This repeats it with the one thing only the
+          // queue knows, so the card counts down to the next attempt instead of going quiet.
+          bus.publish({
+            type: 'candidate.state',
+            candidateId: job.candidate.id,
+            state: 'FAILED',
+            attempts: store.candidate(job.candidate.id)?.attempts ?? attempts + 1,
+            message,
+            retryInMs: delay,
+          });
           console.warn(`[queue] ${job.candidate.id} failed (${message}); retrying in ${delay}ms`);
           setTimeout(() => this.enqueue(job.candidate, job.valueWei), delay);
         }

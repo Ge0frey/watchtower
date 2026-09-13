@@ -103,6 +103,23 @@ export type StreamEvent =
   | { type: 'challenge.upheld'; incidentId: Hex; challenger: Address }
   | { type: 'cursor.advanced'; subjectId: Hex; height: number; index: number }
   | { type: 'price.updated'; subjectId: Hex; answer: string; provenAtHeight: number }
+  /**
+   * Every candidate state change, from the one place they are all written.
+   *
+   * The narrated events above cover the happy path; this covers the rest of it. A retryable failure
+   * used to change the worker's record and publish nothing, so a dashboard sat on the last string it
+   * had been given - "verifying on Creditcoin" - while the candidate quietly cycled through failures
+   * behind it, and only a refresh told the truth.
+   */
+  | {
+      type: 'candidate.state';
+      candidateId: string;
+      state: CandidateState;
+      attempts: number;
+      message?: string;
+      /** Set when the queue has scheduled another attempt, so the UI can say when. */
+      retryInMs?: number;
+    }
   | { type: 'error'; candidateId?: string; message: string };
 
 export interface HealthReport {

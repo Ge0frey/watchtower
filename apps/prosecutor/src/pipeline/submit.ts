@@ -14,6 +14,7 @@ import { bus } from '../bus.js';
 import { config } from '../config.js';
 import { coreContract, ethersProvider, prosecutorWallet } from '../chain.js';
 import { store } from '../db/store.js';
+import { PermanentError, consumedMessage, firstConsumed } from './replay.js';
 
 const client = createClient();
 
@@ -58,6 +59,19 @@ export async function prosecute(candidate: Candidate, valueWei = 0n): Promise<Su
   if (!(await preflight(client, bundle))) {
     store.setCandidateState(candidate.id, 'FAILED', 'pre-flight verification returned false');
     throw new Error('pre-flight verification failed - evidence is not provable yet');
+  }
+
+  // The one revert pre-flight cannot see. It re-verifies the proofs, not whether this window has
+  // already been judged - and `_consumeAll` burns a coordinate the first time a verdict lands, so a
+  // re-filed window reverts every time it is sent. Three batched eth_calls here, against a full
+  // submission's gas per retry there. Scanner-built candidates reach this too, which is what a
+  // restarted scanner re-detecting an old block needs.
+  const coords = coordsOf(bundle, candidate.chainKey as ChainKey);
+  const spent = await firstConsumed(candidate.ruleId, candidate.subjectId, candidate.chainKey as ChainKey, coords);
+  if (spent) {
+    const message = consumedMessage(candidate.ruleId, candidate.subjectId, coords, spent);
+    store.setCandidateState(candidate.id, 'UNPROVABLE', message);
+    throw new PermanentError(message);
   }
 
   if (!config.submitEnabled) throw new Error('submission disabled (SUBMIT_ENABLED=false)');

@@ -5,9 +5,10 @@ import { attestedHead, createClient, toEvidenceInput, buildEvidenceBundle } from
 import { RULES, ruleByIdOrNull, type ChainKey, type HealthReport } from '@watchtower/shared';
 import { bus } from '../bus.js';
 import { config } from '../config.js';
-import { publicClient, readBountyPool, readSubjects, readVaultTranche, prosecutorWallet } from '../chain.js';
+import { contracts, publicClient, readBountyPool, readSubjects, readVaultTranche, prosecutorWallet } from '../chain.js';
 import { store } from '../db/store.js';
 import { queue } from '../pipeline/queue.js';
+import { consumedMessage, coordinatesOf, firstConsumed } from '../pipeline/replay.js';
 
 const attestcoin = createClient();
 
@@ -172,6 +173,45 @@ export async function startApi() {
     }
 
     const chainKey = (body.chainKey ?? 3) as ChainKey;
+
+    /*
+     * Refuse what cannot settle, before anything is queued or signed.
+     *
+     * All three of these end in the same on-chain revert, and the cost of finding out that way is a
+     * submission's gas per retry for the relayed path and a rejected wallet transaction for the
+     * self path. None of them is visible to `preflight`, which re-verifies proofs and nothing else.
+     * A 4xx here is the whole difference between an answer and a pipeline card that fails quietly.
+     */
+    const duplicate = store
+      .candidates((c) => !['CONFIRMED', 'UNPROVABLE'].includes(c.state))
+      .find((c) => c.txHashes.join('|').toLowerCase() === txHashes.join('|').toLowerCase());
+    if (duplicate) {
+      return reply
+        .code(409)
+        .send({ error: `already in flight as ${duplicate.id} (${duplicate.state.toLowerCase()})` });
+    }
+
+    let coords;
+    try {
+      coords = await coordinatesOf(chainKey, txHashes);
+    } catch (error) {
+      return reply.code(400).send({ error: error instanceof Error ? error.message : 'evidence is not mined' });
+    }
+
+    const subject = await publicClient.readContract({
+      ...contracts.registry,
+      functionName: 'getSubject',
+      args: [body.subjectId],
+    });
+    if (!subject.active) {
+      return reply.code(400).send({ error: `subject ${subject.label} is retired - submitEvidence would revert` });
+    }
+
+    const spent = await firstConsumed(body.ruleId, body.subjectId, chainKey, coords);
+    if (spent) {
+      return reply.code(409).send({ error: consumedMessage(body.ruleId, body.subjectId, coords, spent) });
+    }
+
     const candidate = {
       id: `manual-${Date.now()}`,
       subjectId: body.subjectId,

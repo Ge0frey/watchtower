@@ -78,6 +78,14 @@ export function useIncidentFeed(): FeedState {
             prev.map((i) => (i.id === event.incidentId ? { ...i, status: 'rolled-back' } : i)),
           );
           break;
+        case 'candidate.state':
+          // The row itself, not just its caption: without this an UNPROVABLE candidate keeps its
+          // place in every `inFlight` filter until the page is reloaded.
+          setCandidates((prev) =>
+            prev.map((c) => (c.id === event.candidateId ? { ...c, state: event.state } : c)),
+          );
+          setProgress((p) => ({ ...p, [event.candidateId]: describeState(event) }));
+          break;
         case 'error':
           if (event.candidateId) {
             setProgress((p) => ({ ...p, [event.candidateId!]: `failed: ${event.message}` }));
@@ -95,4 +103,31 @@ export function useIncidentFeed(): FeedState {
   }, []);
 
   return { incidents, candidates, progress, connected };
+}
+
+/**
+ * What a bare state change reads as.
+ *
+ * The narrated events above carry better sentences and are published after the store write that
+ * triggers this one, so this only has the last word where nobody narrates - which is precisely where
+ * the dead air was. A failure now says what went wrong and when it will be tried again, instead of
+ * leaving the previous step's caption on screen until someone reloads.
+ */
+function describeState(event: Extract<StreamEvent, { type: 'candidate.state' }>): string {
+  const caption: Record<typeof event.state, string> = {
+    DETECTED: 'detected',
+    AWAITING_ATTESTATION: 'waiting for attestation (~8 min)',
+    PROVING: 'building Merkle + continuity proofs',
+    PREFLIGHT: 'verifying against the precompile \u2014 no gas',
+    SUBMITTED: 'verifying on Creditcoin',
+    CONFIRMED: 'confirmed',
+    FAILED: `failed: ${event.message ?? 'unknown error'}`,
+    UNPROVABLE: `unprovable: ${event.message ?? 'this window cannot settle'}`,
+  };
+
+  const line = caption[event.state];
+  if (event.state === 'FAILED' && event.retryInMs) {
+    return `${line} \u00b7 retrying in ${Math.round(event.retryInMs / 1000)}s (attempt ${event.attempts})`;
+  }
+  return line;
 }

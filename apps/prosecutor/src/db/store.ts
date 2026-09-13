@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Candidate, CandidateState, Incident } from '@watchtower/shared';
+import { bus } from '../bus.js';
 import { config } from '../config.js';
 
 /**
@@ -116,6 +117,15 @@ export class Store {
     return this.snapshot.candidates[id];
   }
 
+  /**
+   * The one place a candidate's state is written - and therefore the one place worth announcing it.
+   *
+   * Publishing here rather than at each call site is deliberate: the queue, the submit pipeline, the
+   * scanners and the boot-time replay all funnel through this method, so every transition reaches a
+   * connected dashboard whether or not whoever made it remembered to say so. The narrated events in
+   * `submit.ts` are published *after* their store write, so the richer sentence still wins the race
+   * for the same candidate.
+   */
   setCandidateState(id: string, state: CandidateState, lastError?: string) {
     const existing = this.snapshot.candidates[id];
     if (!existing) return;
@@ -123,6 +133,13 @@ export class Store {
     if (lastError) existing.lastError = lastError;
     if (state === 'FAILED' || state === 'PROVING') existing.attempts += 1;
     this.flush();
+    bus.publish({
+      type: 'candidate.state',
+      candidateId: id,
+      state,
+      attempts: existing.attempts,
+      ...(lastError ? { message: lastError } : {}),
+    });
   }
 
   candidates(filter?: (c: Candidate) => boolean): Candidate[] {
