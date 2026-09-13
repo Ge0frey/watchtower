@@ -98,7 +98,7 @@ well-defined, so that one is a redeploy of the bridge, not an edit. On a Sepolia
 ## 2 — Dashboard on Vercel
 
 **Deployed.** Project `watchtower` (`prj_vMlb8ylb49e5DoXWJ2lh24jRSPsq`), git-connected to the same
-repo, at <https://watchtower-eight-chi.vercel.app>.
+repo, at <https://watchtower-attestation.vercel.app>.
 
 - **Root Directory must be `apps/web`.** This is the whole trick, and getting it wrong fails the
   build with `No Next.js version detected` — Vercel looks for `next` in the package.json at the root
