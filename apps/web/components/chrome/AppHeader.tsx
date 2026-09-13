@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { formatUsd, shortHash } from '@watchtower/shared';
 import { api } from '@/lib/api';
 import { useChainState } from '@/hooks/useChainState';
+import { Lockup } from '@/components/brand/Logo';
 import { ConnectButton } from './ConnectButton';
 
 /**
@@ -50,10 +51,10 @@ export function AppHeader() {
         <div className="shell flex h-20 items-center justify-between gap-8">
           <Link
             href="/"
-            className="font-mono text-[13px] font-bold uppercase tracking-[0.24em] transition-colors hover:text-accent-deep"
+            className="transition-colors hover:text-accent-deep"
             title="back to the argument"
           >
-            Watchtower
+            <Lockup />
           </Link>
 
           <nav className="hidden items-center gap-1 lg:flex">

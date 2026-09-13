@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { formatUsd } from '@watchtower/shared';
 import { useChainState } from '@/hooks/useChainState';
+import { Lockup } from '@/components/brand/Logo';
 
 /**
  * The landing page's header.
@@ -23,11 +24,8 @@ export function SiteHeader() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-ink/12 bg-paper/85 backdrop-blur-xl">
       <div className="shell flex h-[72px] items-center justify-between gap-6">
-        <Link
-          href="/"
-          className="font-mono text-[13px] font-bold uppercase tracking-[0.24em] transition-colors hover:text-accent-deep"
-        >
-          Watchtower
+        <Link href="/" className="transition-colors hover:text-accent-deep">
+          <Lockup />
         </Link>
 
         <div className="flex items-center gap-5">

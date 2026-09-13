@@ -33,6 +33,9 @@ export const metadata: Metadata = {
   title: 'Watchtower — proof-native insurance for Ethereum',
   description:
     'Ethereum cannot see the transactions beside it in its own block. Creditcoin can. Watchtower pays out on proof alone.',
+  icons: {
+    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

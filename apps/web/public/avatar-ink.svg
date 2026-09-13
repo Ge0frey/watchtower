@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" role="img" aria-label="Watchtower">
+  <title>Watchtower</title>
+  <!--
+    THE AVATAR, INK
+    ────────────────────────────────────────────────────────────────────
+    Full bleed to the square, with no rounded corners of its own: every
+    platform that shows this crops it differently, and a corner radius baked
+    into the file fights whatever mask is put over it.
+
+    The mark is set at 0.78 so its furthest point sits at roughly two thirds of
+    the inscribed circle. That is the safe area, and it is why the beam survives
+    a round crop with the tick heads still clear of the edge.
+  -->
+  <rect width="32" height="32" fill="#101010" />
+  <g transform="translate(16 16) scale(0.78) translate(-16 -16)" stroke-width="2.9" stroke-linecap="round">
+    <g stroke="#f2f1ec">
+      <circle cx="13.2" cy="16" r="9.2" />
+      <path d="M13.2 4V8.4" />
+      <path d="M13.2 23.6V28" />
+    </g>
+    <path stroke="#7d8f6a" d="M3.9 16H28" />
+  </g>
+</svg>

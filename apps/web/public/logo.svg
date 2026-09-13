@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" role="img" aria-label="Watchtower">
+  <title>Watchtower</title>
+  <!--
+    THE MARK · "the sightline"
+    ────────────────────────────────────────────────────────────────────
+    A printer's registration mark with one axis thrown wide.
+
+    The ring and its two ticks are the register: the instrument that proves a
+    thing sits in the exact position it claims to. That is the product. Not that
+    a transaction happened, but that it sat at one precise (block, index) beside
+    another one.
+
+    The sage axis is the only part that is coloured and the only part that
+    leaves the ring. It runs out one side and keeps going, because the claim is
+    directional: Ethereum can see the ring and cannot see past it. Sage means
+    PROVEN everywhere in this system, and means exactly that here. It stays the
+    one accent cut on every ground: the register changes colour to suit the paper
+    it is printed on, the proof does not.
+
+    A 32 unit field at a 2.6 stroke. Holds at 16px.
+    Light grounds. Use logo-inverse.svg on ink, logo-mono.svg for one colour.
+  -->
+  <g stroke-width="2.6" stroke-linecap="round">
+    <g stroke="#101010">
+      <circle cx="13.2" cy="16" r="9.2" />
+      <path d="M13.2 4V8.4" />
+      <path d="M13.2 23.6V28" />
+    </g>
+    <path stroke="#7d8f6a" d="M3.9 16H28" />
+  </g>
+</svg>
