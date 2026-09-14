@@ -42,6 +42,7 @@ export function SiteFooter() {
             </FooterColumn>
 
             <FooterColumn title="Understand">
+              <FooterFile href="/watchtower-whitepaper.pdf">Whitepaper</FooterFile>
               <FooterLink href="/#problem">The problem</FooterLink>
               <FooterLink href="/#insight">The insight</FooterLink>
               <FooterLink href="/#engine">The engine</FooterLink>
@@ -88,6 +89,19 @@ function FooterColumn({ title, children }: { title: string; children: React.Reac
       <p className="label mb-5 text-paper/35">{title}</p>
       <div className="space-y-3">{children}</div>
     </div>
+  );
+}
+
+function FooterFile({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="block text-[14px] text-paper/60 transition-colors hover:text-accent"
+    >
+      {children} <span className="font-mono text-[11px] text-paper/35">PDF &nbsp;&#8599;</span>
+    </a>
   );
 }
 
