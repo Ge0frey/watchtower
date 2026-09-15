@@ -22,6 +22,17 @@ interface Props {
   params: Promise<{ slug?: string[] }>;
 }
 
+/**
+ * The documentation's own share card, on paper where the marketing card is on ink,
+ * so the two links are tellable apart at thumbnail size in the same timeline.
+ */
+const OG_IMAGE = {
+  url: '/og/docs.png',
+  width: 1200,
+  height: 630,
+  alt: 'Watchtower documentation. How Creditcoin proves a claim. The precompile, the proof, the payout, and every rule the system obeys.',
+};
+
 const slugOf = (segments?: string[]) => (segments ?? []).join('/');
 
 export function generateStaticParams() {
@@ -34,9 +45,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const found = findPage(slugOf((await params).slug));
   if (!found) return { title: 'Not found — Watchtower docs' };
 
+  const title = `${found.page.title} — Watchtower docs`;
+
+  /**
+   * `openGraph` and `twitter` are replaced wholesale per segment rather than deep
+   * merged, so the root's siteName, card type and image all have to be restated
+   * here. Left off, every documentation page would either unfurl under the
+   * marketing card's title or lose its image entirely.
+   */
   return {
-    title: `${found.page.title} — Watchtower docs`,
+    title,
     description: found.page.lede,
+    openGraph: {
+      type: 'article',
+      siteName: 'Watchtower',
+      url: hrefOf(found.page),
+      title,
+      description: found.page.lede,
+      images: [OG_IMAGE],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: found.page.lede,
+      images: [OG_IMAGE],
+    },
   };
 }
 

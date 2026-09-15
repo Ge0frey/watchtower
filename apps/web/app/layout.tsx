@@ -29,10 +29,55 @@ const mono = JetBrains_Mono({
   display: 'swap',
 });
 
+const TITLE = 'Watchtower — proof-native insurance for Ethereum';
+const DESCRIPTION =
+  'Ethereum cannot see the transactions beside it in its own block. Creditcoin can. Watchtower pays out on proof alone.';
+
+/**
+ * The share card. 1200x630, the summary_large_image bed X, LinkedIn, Slack and
+ * Discord all crop to. `/docs` declares its own; everything else shares this one.
+ *
+ * It is a static asset referenced by hand rather than an `opengraph-image.png`
+ * file convention, and that is deliberate. The documentation is one optional
+ * catch-all route, so a convention file under it resolves to
+ * `/docs/[[...slug]]/opengraph-image.png`, which builds clean and then throws
+ * "Catch-all must be the last part of the URL" on every request. Hoisting the
+ * file to the `docs` segment fixes the route and breaks the tag instead: a child
+ * `generateMetadata` that sets `openGraph` replaces the parent's resolved object
+ * wholesale, so the inherited image is dropped and the docs pages unfurl with no
+ * card at all. Naming the image in both places is the only arrangement where the
+ * per-page titles and the image both survive.
+ */
+const OG_IMAGE = {
+  url: '/og/home.png',
+  width: 1200,
+  height: 630,
+  alt: 'Watchtower. Insure against MEV and sandwich attacks. Every claim is a cryptographic proof, verified on Creditcoin and settled in a single block.',
+};
+
+/**
+ * `metadataBase` is what turns those relative paths into the absolute URLs every
+ * crawler requires. Without it Next emits a bare path and the card silently fails
+ * to unfurl.
+ */
 export const metadata: Metadata = {
-  title: 'Watchtower — proof-native insurance for Ethereum',
-  description:
-    'Ethereum cannot see the transactions beside it in its own block. Creditcoin can. Watchtower pays out on proof alone.',
+  metadataBase: new URL('https://watchtower-attestation.vercel.app'),
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    type: 'website',
+    siteName: 'Watchtower',
+    url: '/',
+    title: TITLE,
+    description: DESCRIPTION,
+    images: [OG_IMAGE],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: TITLE,
+    description: DESCRIPTION,
+    images: [OG_IMAGE],
+  },
   icons: {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
   },
