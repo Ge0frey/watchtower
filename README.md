@@ -1,5 +1,3 @@
-[![Watchtower demo](https://img.youtube.com/vi/K46waI5e-Co/maxresdefault.jpg)](https://youtu.be/K46waI5e-Co)
-
 # Watchtower
 
 **Watchtower is a Creditcoin USC turning attestation into insurance against MEV and sandwich attacks on Ethereum. Its Block Prover precompile verifies attested foreign txs and their position, so the claim is the proof, judged and paid in one Creditcoin block. Currently, Watchtower insures users against MEV bot activity and sandwich attacks on Ethereum, and we are working to extend it to other chains.**
